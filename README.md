@@ -68,12 +68,20 @@ ansible-lint --version
 yamllint --version
 ```
 
-Run the complete shared lint suite from the repository root or from the
-`ansible` directory:
+The repository keeps Python control-node dependencies in
+`ansible/requirements.txt`. GitHub Actions installs that file and uses it as the
+pip cache key. The separate `ansible/requirements.yml` file contains Ansible
+Galaxy collections.
+
+`pipx ensurepath` is not a Python dependency. It updates the shell `PATH` so
+commands installed by pipx can be found, so it belongs in workstation setup
+instructions rather than in `requirements.txt`.
+
+From the repository root, enter the `ansible` directory once. Run all Ansible
+commands below from that directory:
 
 ```bash
-./ansible/lint.sh
-# Or, from ansible/:
+cd ansible
 ./lint.sh
 ```
 
@@ -81,17 +89,16 @@ Open and unlock the 1Password desktop app, enable **Settings > Developer >
 Integrate with 1Password CLI**, and run `op vault list` once to confirm the CLI
 can authenticate through the desktop app.
 
-From the repository root, install the project collections and make a local SSH
-configuration:
+Install the project collections and create a local SSH configuration. The local
+`ansible.cfg` configures the inventory and role path:
 
 ```bash
-cd ansible
 ansible-galaxy collection install -r requirements.yml
 cp inventories/production/hosts.yml inventories/production/hosts.local.yml
 ```
 
 Edit the local inventory with the public IP and the SSH key used for the existing
-`ubuntu` login. Add `hosts.local.yml` to `.gitignore`; alternatively edit the
+`ubuntu` login. Add `inventories/production/hosts.local.yml` to `.gitignore`; alternatively edit the
 tracked inventory if this repository is private and the key path is intentionally
 shared.
 
@@ -118,7 +125,7 @@ duration of the command. For example:
 LLM_API_KEY='op://Work/llm-api-key/credential' \
 HF_TOKEN='op://Work/huggingface-token/credential' \
 op run -- ansible-playbook playbooks/site.yml \
-  -i inventories/production/hosts.local.yml
+	-i inventories/production/hosts.local.yml
 ```
 
 For the production flow, replace the direct 1Password secret references with a
@@ -142,10 +149,10 @@ ansible llm_servers -i inventories/production/hosts.local.yml -m ping
 ansible-playbook playbooks/site.yml --syntax-check
 LLM_API_KEY='op://Work/llm-api-key/credential' \
 op run -- ansible-playbook playbooks/site.yml \
-  -i inventories/production/hosts.local.yml --check --diff
+	-i inventories/production/hosts.local.yml --check --diff
 LLM_API_KEY='op://Work/llm-api-key/credential' \
 op run -- ansible-playbook playbooks/site.yml \
-  -i inventories/production/hosts.local.yml
+	-i inventories/production/hosts.local.yml
 ```
 
 The first run installs Python 3, creates `/opt/vllm/venv`, installs the pinned
@@ -176,7 +183,8 @@ The workflow does not have server credentials and never runs a normal playbook
 against a host. It only uses `--syntax-check`, `--list-hosts`, and
 `--list-tasks`, which do not connect to managed servers.
 
-GitHub Actions and local development both execute `ansible/lint.sh`. The script
+GitHub Actions and local development both execute `ansible/lint.sh` from the
+`ansible` working directory. The script
 installs the declared Ansible collections, validates YAML, checks playbook
 syntax, resolves the inventory, lists hosts and tasks, and runs Ansible Lint.
 All of these checks are non-connecting; they never apply the playbook to a
