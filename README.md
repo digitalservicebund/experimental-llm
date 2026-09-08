@@ -53,7 +53,7 @@ On macOS, install the control-node tools with Homebrew and the official Ansible
 brew install pipx
 pipx ensurepath
 # Open a new terminal after ensurepath, if pipx is not yet on PATH.
-pipx install --include-deps ansible
+pipx install --include-deps ansible-core==2.21.3
 ansible --version
 brew install 1password-cli
 op --version
