@@ -23,12 +23,12 @@
           - llm_api_key | length > 0
         fail_msg: Store llm_api_key in an encrypted variable before deploying.
 
-    - name: Require Ubuntu 24.04
+    - name: Require Ubuntu 26.04
       ansible.builtin.assert:
         that:
           - ansible_facts['distribution'] == 'Ubuntu'
-          - ansible_facts['distribution_version'] is version('24.04', '>=')
-        fail_msg: This playbook targets Ubuntu 24.04 or newer.
+          - ansible_facts['distribution_version'] is version('26.04', '>=')
+        fail_msg: This playbook targets Ubuntu 26.04 or newer.
 
   roles:
     - role: common
