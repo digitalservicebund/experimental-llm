@@ -1,10 +1,45 @@
 ---
-- name: Verify NVIDIA driver and GPU visibility
+- name: Install NVIDIA utility package
+  ansible.builtin.apt:
+    name: nvidia-utils-595-server
+    state: present
+    lock_timeout: 120
+  when: llm_gpu_vendor | lower == 'nvidia'
+
+- name: Check whether nvidia-smi is available
+  ansible.builtin.command: which nvidia-smi
+  register: vllm_nvidia_smi_path
+  changed_when: false
+  failed_when: false
+  when: llm_gpu_vendor | lower == 'nvidia'
+
+- name: Fail when NVIDIA driver tooling is missing
+  ansible.builtin.fail:
+    msg: >-
+      NVIDIA GPU support is enabled (llm_gpu_vendor=nvidia), but nvidia-smi was
+      not found on the host. Install the NVIDIA driver stack and rerun the playbook.
+  when:
+    - llm_gpu_vendor | lower == 'nvidia'
+    - vllm_nvidia_smi_path.rc != 0
+
+- name: Query NVIDIA driver and GPU visibility
   ansible.builtin.command: >-
     nvidia-smi --query-gpu=driver_version,memory.total --format=csv,noheader
   register: vllm_nvidia_smi
   changed_when: false
   check_mode: false
+  failed_when: false
+  when: llm_gpu_vendor | lower == 'nvidia'
+
+- name: Fail when NVIDIA driver is not active
+  ansible.builtin.fail:
+    msg: >-
+      nvidia-smi is present but cannot talk to the NVIDIA driver (rc={{ vllm_nvidia_smi.rc }}).
+      Ensure the correct NVIDIA driver is installed and loaded (for example
+      nvidia-driver-595-server), then reboot the host and rerun this playbook.
+  when:
+    - llm_gpu_vendor | lower == 'nvidia'
+    - vllm_nvidia_smi.rc != 0
 
 - name: Install vLLM Python package in an isolated virtual environment
   ansible.builtin.pip:

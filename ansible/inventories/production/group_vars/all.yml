@@ -1,6 +1,17 @@
 ---
 llm_gpu_vendor: nvidia
 
+# Ensure package installation has working route and DNS on Ubuntu hosts.
+common_netplan_manage: true
+common_netplan_file: /etc/netplan/99-ansible.yaml
+common_net_iface: enp3s0
+common_net_dhcp4: true
+common_net_addresses: []
+common_net_gateway4: ""
+common_net_dns_servers:
+  - 1.1.1.1
+  - 8.8.8.8
+
 llm_model: Qwen/Qwen2.5-Coder-32B-Instruct
 llm_host_port: 8000
 llm_service_user: vllm
