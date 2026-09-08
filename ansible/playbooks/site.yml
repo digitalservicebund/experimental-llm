@@ -26,8 +26,8 @@
     - name: Require Ubuntu 24.04
       ansible.builtin.assert:
         that:
-          - ansible_distribution == 'Ubuntu'
-          - ansible_distribution_version is version('24.04', '>=')
+          - ansible_facts['distribution'] == 'Ubuntu'
+          - ansible_facts['distribution_version'] is version('24.04', '>=')
         fail_msg: This playbook targets Ubuntu 24.04 or newer.
 
   roles:
