@@ -8,12 +8,12 @@ llm_model_cache_dir: /var/lib/vllm/model-cache
 llm_virtualenv: /opt/vllm/venv
 
 # Pin this after validating the NVIDIA driver and Python environment.
-vllm_version: ""
+vllm_version: "v0.28.0"
 vllm_torch_index: https://download.pytorch.org/whl/cu129
 llm_max_model_len: 32768
 llm_tensor_parallel_size: 1
 llm_gpu_memory_utilization: 0.90
-llm_api_key: "{{ lookup('ansible.builtin.env', 'LLM_API_KEY') }}"
+llm_api_key: "{{ lookup('ansible.builtin.env', 'LLM_KEY_1') }}"
 
 # Keep the API bound to the host. Expose it through a reverse proxy or a tightly
 # restricted STACKIT security group rather than opening port 8000 broadly.
