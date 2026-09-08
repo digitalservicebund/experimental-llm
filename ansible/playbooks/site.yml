@@ -1,0 +1,35 @@
+---
+- name: Configure the LLM server
+  hosts: llm_servers
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Require NVIDIA GPU visibility
+      ansible.builtin.assert:
+        that:
+          - llm_gpu_vendor == 'nvidia'
+        fail_msg: This playbook targets NVIDIA GPUs.
+
+    - name: Require an explicit vLLM version
+      ansible.builtin.assert:
+        that:
+          - vllm_version | length > 0
+        fail_msg: Set vllm_version to a tested, pinned vLLM version.
+
+    - name: Require an API key
+      ansible.builtin.assert:
+        that:
+          - llm_api_key | length > 0
+        fail_msg: Store llm_api_key in an encrypted variable before deploying.
+
+    - name: Require Ubuntu 24.04
+      ansible.builtin.assert:
+        that:
+          - ansible_distribution == 'Ubuntu'
+          - ansible_distribution_version is version('24.04', '>=')
+        fail_msg: This playbook targets Ubuntu 24.04 or newer.
+
+  roles:
+    - role: common
+    - role: vllm

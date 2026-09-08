@@ -1,0 +1,24 @@
+[Unit]
+Description=vLLM OpenAI-compatible server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=10
+EnvironmentFile=/etc/vllm.env
+User={{ llm_service_user }}
+Environment=PATH={{ llm_virtualenv }}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
+ExecStart={{ llm_virtualenv }}/bin/vllm serve ${MODEL} \
+  --host {{ llm_api_host }} \
+  --port {{ llm_host_port }} \
+  --api-key ${LLM_API_KEY} \
+  --max-model-len {{ llm_max_model_len }} \
+  --tensor-parallel-size {{ llm_tensor_parallel_size }} \
+  --gpu-memory-utilization {{ llm_gpu_memory_utilization }}
+WorkingDirectory={{ llm_model_cache_dir }}
+LimitNOFILE=1048576
+
+[Install]
+WantedBy=multi-user.target
