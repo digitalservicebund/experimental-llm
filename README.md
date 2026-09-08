@@ -89,21 +89,29 @@ Open and unlock the 1Password desktop app, enable **Settings > Developer >
 Integrate with 1Password CLI**, and run `op vault list` once to confirm the CLI
 can authenticate through the desktop app.
 
-Install the project collections and create a local SSH configuration. The local
+Install the project collections. The local
 `ansible.cfg` configures the inventory and role path:
 
 ```bash
 ansible-galaxy collection install -r requirements.yml
-cp inventories/production/hosts.yml inventories/production/hosts.local.yml
 ```
 
-Edit the local inventory with the public IP and the SSH key used for the existing
-`ubuntu` login. Add `inventories/production/hosts.local.yml` to `.gitignore`; alternatively edit the
-tracked inventory if this repository is private and the key path is intentionally
-shared.
+Edit `inventories/production/hosts.yml` with the public IP and the SSH key used
+for the existing `ubuntu` login.
 
 Set a tested, pinned `vllm_version` and matching CUDA PyTorch index in
 `inventories/production/group_vars/all.yml`.
+
+Store the server's public IP in 1Password alongside the other secrets, then add
+its SSH host key fingerprint to `known_hosts` before running Ansible so the
+connection is not prompted for interactive host key verification:
+
+```bash
+op run --env-file=.env.op -- sh -c 'ssh-keyscan -H "$SERVER_PUBLIC_IP" >> ~/.ssh/known_hosts'
+```
+
+Verify the printed fingerprint against the one shown in the STACKIT console (or
+another trusted out-of-band source) before trusting it.
 
 ### Secrets
 
@@ -125,7 +133,7 @@ duration of the command. For example:
 LLM_API_KEY='op://Work/llm-api-key/credential' \
 HF_TOKEN='op://Work/huggingface-token/credential' \
 op run -- ansible-playbook playbooks/site.yml \
-	-i inventories/production/hosts.local.yml
+	-i inventories/production/hosts.yml
 ```
 
 For the production flow, replace the direct 1Password secret references with a
@@ -145,14 +153,14 @@ Validate connectivity and the playbook before changing the server:
 
 ```bash
 ansible-inventory --graph
-ansible llm_servers -i inventories/production/hosts.local.yml -m ping
+ansible llm_servers -i inventories/production/hosts.yml -m ping
 ansible-playbook playbooks/site.yml --syntax-check
 LLM_API_KEY='op://Work/llm-api-key/credential' \
 op run -- ansible-playbook playbooks/site.yml \
-	-i inventories/production/hosts.local.yml --check --diff
+	-i inventories/production/hosts.yml --check --diff
 LLM_API_KEY='op://Work/llm-api-key/credential' \
 op run -- ansible-playbook playbooks/site.yml \
-	-i inventories/production/hosts.local.yml
+	-i inventories/production/hosts.yml
 ```
 
 The first run installs Python 3, creates `/opt/vllm/venv`, installs the pinned
