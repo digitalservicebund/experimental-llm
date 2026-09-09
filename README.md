@@ -76,12 +76,10 @@ Galaxy collections.
 commands installed by pipx can be found, so it belongs in workstation setup
 instructions rather than in `requirements.txt`.
 
-From the repository root, enter the `ansible` directory once. Run all Ansible
-commands below from that directory:
+From the repository root, use the shared `do` command runner:
 
 ```bash
-cd ansible
-./lint.sh
+./do lint
 ```
 
 Open and unlock the 1Password desktop app, enable **Settings > Developer >
@@ -175,12 +173,10 @@ sudo journalctl -u vllm -f
 
 ### SSH tunnel for local clients (for example opencode)
 
-Use the helper script from the `ansible` directory to open a local tunnel to the
-remote vLLM API:
+Use the helper command to open a local tunnel to the remote vLLM API:
 
 ```bash
-cd ansible
-./tunnel.sh
+./do tunnel
 ```
 
 By default the script forwards `127.0.0.1:8000` on your workstation to
@@ -188,12 +184,11 @@ By default the script forwards `127.0.0.1:8000` on your workstation to
 `op run`. Optional overrides:
 
 ```bash
-cd ansible
 VLLM_TUNNEL_LOCAL_PORT=18000 \
 VLLM_TUNNEL_REMOTE_PORT=8000 \
 VLLM_TUNNEL_REMOTE_HOST=127.0.0.1 \
 VLLM_SSH_USER=ubuntu \
-./tunnel.sh
+./do tunnel
 ```
 
 Then point your OpenAI-compatible local client (including opencode) to
@@ -216,8 +211,7 @@ The workflow does not have server credentials and never runs a normal playbook
 against a host. It only uses `--syntax-check`, `--list-hosts`, and
 `--list-tasks`, which do not connect to managed servers.
 
-GitHub Actions and local development both execute `ansible/lint.sh` from the
-`ansible` working directory. The script
+GitHub Actions and local development both execute `./do lint`. The command
 installs the declared Ansible collections, validates YAML, checks playbook
 syntax, resolves the inventory, lists hosts and tasks, and runs Ansible Lint.
 All of these checks are non-connecting; they never apply the playbook to a
