@@ -16,7 +16,9 @@ ExecStart={{ llm_virtualenv }}/bin/vllm serve ${MODEL} \
   --port {{ llm_host_port }} \
   --max-model-len {{ llm_max_model_len }} \
   --tensor-parallel-size {{ llm_tensor_parallel_size }} \
-  --gpu-memory-utilization {{ llm_gpu_memory_utilization }}
+  --gpu-memory-utilization {{ llm_gpu_memory_utilization }} \
+  --enable-auto-tool-choice \
+  --tool-call-parser hermes
 WorkingDirectory={{ llm_model_cache_dir }}
 LimitNOFILE=1048576
 

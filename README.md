@@ -173,6 +173,32 @@ curl http://127.0.0.1:8000/v1/models \
 sudo journalctl -u vllm -f
 ```
 
+### SSH tunnel for local clients (for example opencode)
+
+Use the helper script from the `ansible` directory to open a local tunnel to the
+remote vLLM API:
+
+```bash
+cd ansible
+./tunnel.sh
+```
+
+By default the script forwards `127.0.0.1:8000` on your workstation to
+`127.0.0.1:8000` on the server and reads `SERVER_PUBLIC_IP` from `.env.op` using
+`op run`. Optional overrides:
+
+```bash
+cd ansible
+VLLM_TUNNEL_LOCAL_PORT=18000 \
+VLLM_TUNNEL_REMOTE_PORT=8000 \
+VLLM_TUNNEL_REMOTE_HOST=127.0.0.1 \
+VLLM_SSH_USER=ubuntu \
+./tunnel.sh
+```
+
+Then point your OpenAI-compatible local client (including opencode) to
+`http://127.0.0.1:8000/v1` (or the local port you selected).
+
 Use a dedicated vLLM version and CUDA wheel combination that has been tested on
 the actual NVIDIA driver. The model is 32.5B parameters, so available VRAM and
 the selected context length are operational constraints; a single GPU may need

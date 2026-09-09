@@ -31,6 +31,7 @@ vllm_torch_index: https://download.pytorch.org/whl/cu130
 llm_max_model_len: 32768
 llm_tensor_parallel_size: 1
 llm_gpu_memory_utilization: 0.90
+
 llm_api_key: "{{ lookup('ansible.builtin.env', 'LLM_KEY_1') }}"
 
 # Keep the API bound to the host. Expose it through a reverse proxy or a tightly
