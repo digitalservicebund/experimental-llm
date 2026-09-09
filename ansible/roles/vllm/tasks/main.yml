@@ -54,7 +54,8 @@
   ansible.builtin.fail:
     msg: >-
       NVIDIA GPU support is enabled (llm_gpu_vendor=nvidia), but nvidia-smi was
-      not found on the host. Install the NVIDIA driver stack and rerun the playbook.
+      not found on the host. Install the NVIDIA driver stack and rerun this
+      playbook.
   when:
     - llm_gpu_vendor | lower == 'nvidia'
     - vllm_nvidia_smi_path.rc != 0
@@ -71,7 +72,8 @@
 - name: Fail when NVIDIA driver is not active
   ansible.builtin.fail:
     msg: >-
-      nvidia-smi is present but cannot talk to the NVIDIA driver (rc={{ vllm_nvidia_smi.rc }}).
+      nvidia-smi is present but cannot talk to the NVIDIA driver
+      (rc={{ vllm_nvidia_smi.rc }}).
       Ensure the correct NVIDIA driver is installed and loaded (for example
       nvidia-driver-595-server), then reboot the host and rerun this playbook.
   when:
@@ -125,8 +127,13 @@
     - item.path | basename != 'models--' ~ (llm_model | replace('/', '--'))
 
 - name: Resolve the virtualenv site-packages path
-  ansible.builtin.command: >-
-    {{ llm_virtualenv }}/bin/python3 -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])'
+  ansible.builtin.command:
+    argv:
+      - "{{ llm_virtualenv }}/bin/python3"
+      - -c
+      - |
+        import sysconfig
+        print(sysconfig.get_paths()["purelib"])
   register: vllm_site_packages
   changed_when: false
 
@@ -163,7 +170,11 @@
 - name: Check vLLM health endpoint
   ansible.builtin.uri:
     url: >-
-      http://{{ '127.0.0.1' if llm_api_host in ['0.0.0.0', '::'] else llm_api_host }}:{{ llm_host_port }}/health
+      http://{{
+        '127.0.0.1'
+        if llm_api_host in ['0.0.0.0', '::']
+        else llm_api_host
+      }}:{{ llm_host_port }}/health
     method: GET
     status_code: 200
     use_proxy: false
