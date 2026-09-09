@@ -103,6 +103,12 @@
     group: "{{ llm_service_user }}"
     mode: "0750"
 
+- name: Resolve the virtualenv site-packages path
+  ansible.builtin.command: >-
+    {{ llm_virtualenv }}/bin/python3 -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])'
+  register: vllm_site_packages
+  changed_when: false
+
 - name: Write vLLM environment file
   ansible.builtin.template:
     src: vllm.env.j2

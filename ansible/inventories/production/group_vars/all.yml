@@ -12,7 +12,8 @@ common_net_dns_servers:
   - 1.1.1.1
   - 8.8.8.8
 
-llm_model: Qwen/Qwen2.5-Coder-32B-Instruct
+# AWQ int4 (~19 GiB) so the 32B fits the single 45 GiB L40S; bf16 needs ~64 GiB.
+llm_model: Qwen/Qwen2.5-Coder-32B-Instruct-AWQ
 llm_host_port: 8000
 llm_service_user: vllm
 llm_model_cache_dir: /var/lib/vllm/model-cache

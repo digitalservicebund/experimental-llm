@@ -45,6 +45,8 @@
       - build-essential
       - python3
       - python3-venv
+      # Triton JIT-compiles CUDA helpers at runtime and needs Python.h.
+      - python3-dev
     state: present
     lock_timeout: 120
 
