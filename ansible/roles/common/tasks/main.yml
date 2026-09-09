@@ -21,9 +21,9 @@
 
 - name: Validate DNS resolution for Ubuntu mirrors
   ansible.builtin.command: getent hosts archive.ubuntu.com
-  register: mirror_dns_check
+  register: common_mirror_dns_check
   changed_when: false
-  failed_when: mirror_dns_check.rc != 0
+  failed_when: common_mirror_dns_check.rc != 0
   when: ansible_facts['distribution'] == 'Ubuntu'
 
 - name: Refresh apt cache
@@ -31,10 +31,10 @@
     update_cache: true
     cache_valid_time: 3600
     lock_timeout: 120
-  register: apt_cache_refresh
+  register: common_apt_cache_refresh
   retries: 5
   delay: 10
-  until: apt_cache_refresh is succeeded
+  until: common_apt_cache_refresh is succeeded
 
 - name: Install Python and base packages
   ansible.builtin.apt:
