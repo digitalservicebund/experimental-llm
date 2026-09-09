@@ -1,0 +1,20 @@
+network:
+  version: 2
+  ethernets:
+    {{ common_net_iface }}:
+      dhcp4: {{ common_net_dhcp4 | bool | lower }}
+{% if common_net_dhcp4 | bool %}
+      nameservers:
+        addresses: [{% for dns in common_net_dns_servers %}{{ dns }}{% if not loop.last %}, {% endif %}{% endfor %}]
+{% else %}
+      addresses:
+{% for addr in common_net_addresses %}
+        - {{ addr }}
+{% endfor %}
+      routes:
+        - to: default
+          via: {{ common_net_gateway4 }}
+      nameservers:
+        addresses: [{% for dns in common_net_dns_servers %}{{ dns }}{% if not loop.last %}, {% endif %}{% endfor %}]
+{% endif %}
+

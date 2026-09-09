@@ -1,4 +1,41 @@
 ---
+- name: Ensure netplan network config for apt connectivity
+  ansible.builtin.template:
+    src: netplan.yaml.j2
+    dest: "{{ common_netplan_file }}"
+    owner: root
+    group: root
+    mode: "0644"
+  when:
+    - common_netplan_manage | bool
+    - ansible_facts['distribution'] == 'Ubuntu'
+  notify: Apply netplan
+
+- name: Apply netplan before apt tasks
+  ansible.builtin.meta: flush_handlers
+
+- name: Wait for host connection after netplan apply
+  ansible.builtin.wait_for_connection:
+    delay: 2
+    timeout: 90
+
+- name: Validate DNS resolution for Ubuntu mirrors
+  ansible.builtin.command: getent hosts archive.ubuntu.com
+  register: common_mirror_dns_check
+  changed_when: false
+  failed_when: common_mirror_dns_check.rc != 0
+  when: ansible_facts['distribution'] == 'Ubuntu'
+
+- name: Refresh apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+    lock_timeout: 120
+  register: common_apt_cache_refresh
+  retries: 5
+  delay: 10
+  until: common_apt_cache_refresh is succeeded
+
 - name: Install Python and base packages
   ansible.builtin.apt:
     name:
@@ -9,8 +46,7 @@
       - python3
       - python3-venv
     state: present
-    update_cache: true
-    cache_valid_time: 3600
+    lock_timeout: 120
 
 - name: Enable unattended security updates
   ansible.builtin.apt:

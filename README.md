@@ -6,9 +6,9 @@ native Python vLLM OpenAI-compatible API with a configurable Hugging Face model.
 ## Important prerequisite
 
 `Qwen/Qwen2.5-Coder-32B-Instruct` is a 32.5B-parameter BF16 model. Confirm the
-STACKIT server has a compatible GPU, NVIDIA driver, and enough VRAM before
-applying the playbook. The role does not install a desktop graphics stack or
-replace the NVIDIA driver automatically.
+STACKIT server has a compatible GPU and enough VRAM before applying the
+playbook. The role installs pinned Ubuntu NVIDIA server driver packages and can
+reboot automatically when the driver changes.
 
 The NVIDIA kernel driver is required. Verify it on the server with
 `nvidia-smi`. A CUDA toolkit installation is normally not required when using a
@@ -39,10 +39,9 @@ application package. Before changing it:
 	kernel/DKMS status before starting vLLM. Run a small inference smoke test and
 	inspect `journalctl -u vllm`.
 
-The Ansible playbook deliberately checks `nvidia-smi` and stops if it fails. It
-does not install or upgrade the driver, reboot the host, or install the desktop
-graphics stack. That boundary prevents a routine application change from
-silently replacing a working cloud GPU driver.
+The Ansible playbook installs pinned NVIDIA server driver packages, then checks
+`nvidia-smi` and stops if the driver is still unavailable. It still does not
+install a desktop graphics stack or use NVIDIA `.run` installers.
 
 ## Workstation setup
 
