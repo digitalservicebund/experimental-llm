@@ -1,9 +1,46 @@
 ---
-- name: Install NVIDIA utility package
+- name: Install NVIDIA driver helper tools
   ansible.builtin.apt:
-    name: nvidia-utils-595-server
+    name: ubuntu-drivers-common
     state: present
     lock_timeout: 120
+  when: llm_gpu_vendor | lower == 'nvidia'
+
+- name: Install NVIDIA driver packages
+  ansible.builtin.apt:
+    name: "{{ vllm_nvidia_driver_packages }}"
+    state: present
+    lock_timeout: 120
+  when: llm_gpu_vendor | lower == 'nvidia'
+
+- name: Check whether reboot is required after driver install
+  ansible.builtin.stat:
+    path: /var/run/reboot-required
+  register: vllm_reboot_required
+  changed_when: false
+  when: llm_gpu_vendor | lower == 'nvidia'
+
+- name: Reboot host when pending reboot is detected
+  ansible.builtin.reboot:
+    msg: Reboot initiated by Ansible to activate NVIDIA kernel modules.
+    reboot_timeout: 1800
+  when:
+    - llm_gpu_vendor | lower == 'nvidia'
+    - vllm_nvidia_auto_reboot | bool
+    - vllm_reboot_required.stat.exists
+
+- name: Fail when reboot is required but auto reboot is disabled
+  ansible.builtin.fail:
+    msg: >-
+      NVIDIA packages are installed but a reboot is required to activate the
+      kernel driver. Reboot the host, or set vllm_nvidia_auto_reboot=true.
+  when:
+    - llm_gpu_vendor | lower == 'nvidia'
+    - not (vllm_nvidia_auto_reboot | bool)
+    - vllm_reboot_required.stat.exists
+
+- name: Refresh facts after potential reboot
+  ansible.builtin.setup:
   when: llm_gpu_vendor | lower == 'nvidia'
 
 - name: Check whether nvidia-smi is available

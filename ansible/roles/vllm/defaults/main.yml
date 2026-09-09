@@ -1,0 +1,8 @@
+---
+# Package set for Ubuntu NVIDIA GPU hosts, pinned to a validated branch.
+vllm_nvidia_driver_packages:
+  - nvidia-driver-595-server
+  - nvidia-utils-595-server
+
+# Reboot automatically when the driver package changes.
+vllm_nvidia_auto_reboot: true
