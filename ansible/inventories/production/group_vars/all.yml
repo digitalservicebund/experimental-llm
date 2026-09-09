@@ -20,7 +20,9 @@ llm_virtualenv: /opt/vllm/venv
 
 # Pin this after validating the NVIDIA driver and Python environment.
 vllm_version: "v0.28.0"
-vllm_torch_index: https://download.pytorch.org/whl/cu129
+# Must match the CUDA major version vLLM's wheels are built against (13), or
+# torch pulls a cu12 stack and vllm._C_stable_libtorch fails on libcudart.so.13.
+vllm_torch_index: https://download.pytorch.org/whl/cu130
 llm_max_model_len: 32768
 llm_tensor_parallel_size: 1
 llm_gpu_memory_utilization: 0.90
