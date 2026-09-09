@@ -103,6 +103,27 @@
     group: "{{ llm_service_user }}"
     mode: "0750"
 
+- name: Find cached model repositories
+  ansible.builtin.find:
+    paths: "{{ llm_model_cache_dir }}/hub"
+    patterns: "models--*"
+    file_type: directory
+    recurse: false
+  register: vllm_cached_models
+  changed_when: false
+  when: llm_prune_old_models | bool
+
+- name: Remove cached models that are no longer served
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ vllm_cached_models.files | default([]) }}"
+  loop_control:
+    label: "{{ item.path | basename }}"
+  when:
+    - llm_prune_old_models | bool
+    - item.path | basename != 'models--' ~ (llm_model | replace('/', '--'))
+
 - name: Resolve the virtualenv site-packages path
   ansible.builtin.command: >-
     {{ llm_virtualenv }}/bin/python3 -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])'

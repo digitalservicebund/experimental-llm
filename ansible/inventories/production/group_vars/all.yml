@@ -19,6 +19,10 @@ llm_service_user: vllm
 llm_model_cache_dir: /var/lib/vllm/model-cache
 llm_virtualenv: /opt/vllm/venv
 
+# Delete cached model repos other than llm_model, so switching models does not
+# silently leave tens of GB behind.
+llm_prune_old_models: true
+
 # Pin this after validating the NVIDIA driver and Python environment.
 vllm_version: "v0.28.0"
 # Must match the CUDA major version vLLM's wheels are built against (13), or
