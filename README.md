@@ -1,5 +1,7 @@
 # experimental-llm
 
+[Documentation for agents](./agents.md)
+
 Ansible configuration for an existing Ubuntu 26.04 NVIDIA server running a
 native Python vLLM OpenAI-compatible API with a configurable Hugging Face model.
 
