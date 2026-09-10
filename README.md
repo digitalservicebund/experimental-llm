@@ -168,7 +168,40 @@ the server:
 ```bash
 curl http://127.0.0.1:8000/v1/models \
   -H 'Authorization: Bearer YOUR_API_KEY'
-sudo journalctl -u vllm -f
+```
+
+### Checking vLLM service status and logs
+
+vLLM runs as the systemd service `vllm` and logs to the journal (there is no
+separate log file). From an SSH session on the server:
+
+```bash
+systemctl status vllm
+```
+
+Follow logs live, for example while the model is loading or during a request:
+
+```bash
+journalctl -u vllm -f
+```
+
+Show logs since the last service (re)start, useful right after a deploy or
+restart:
+
+```bash
+journalctl -u vllm -b --since "$(systemctl show vllm -p ActiveEnterTimestamp --value)"
+```
+
+Show the last N lines without following:
+
+```bash
+journalctl -u vllm -n 200 --no-pager
+```
+
+Filter for errors only:
+
+```bash
+journalctl -u vllm -p err -e
 ```
 
 ### SSH tunnel for local clients (for example opencode)
