@@ -55,7 +55,7 @@ jobs:
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
       - name: Install Terraform
-        uses: digitalservicebund/setup-terraform@v1
+        uses: digitalservicebund/setup-terraform@adfabd79951446bc3078797c9cce4511328a8573 # v1
 
       - name: Check terraform fmt
         run: terraform fmt -recursive -check terraform
@@ -71,7 +71,7 @@ jobs:
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
       - name: Install Terraform
-        uses: digitalservicebund/setup-terraform@v1
+        uses: digitalservicebund/setup-terraform@adfabd79951446bc3078797c9cce4511328a8573 # v1
 
       - name: Initialize Terraform without backend
         run: terraform -chdir=terraform/non-prod init -backend=false -input=false
@@ -96,10 +96,10 @@ jobs:
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
       - name: Install Terraform
-        uses: digitalservicebund/setup-terraform@v1
+        uses: digitalservicebund/setup-terraform@adfabd79951446bc3078797c9cce4511328a8573 # v1
 
       - name: Run STACKIT Terraform execution
-        uses: digitalservicebund/stackit-terraform-execution@v1
+        uses: digitalservicebund/stackit-terraform-execution@4de69952e8f6664a1ee6a75346111e4671b3b142 # v1
         with:
           terraform_module: terraform/non-prod
           STACKIT_SERVICE_ACCOUNT_EMAIL: ${{ vars.STACKIT_SERVICE_ACCOUNT_EMAIL }}
