@@ -1,20 +1,3 @@
-terraform {
-  required_version = ">= 1.13.0"
-
-  required_providers {
-    stackit = {
-      source  = "stackitcloud/stackit"
-      version = "~> 0.114.0"
-    }
-  }
-}
-
-provider "stackit" {
-  default_region        = var.region
-  experiments           = ["iam"]
-  enable_beta_resources = true # needed for stackit_image_v2 and stackit_machine_type
-}
-
 module "llm_gateway" {
   source = "../modules/llm-gateway"
 
@@ -30,4 +13,3 @@ module "llm_gateway" {
   boot_volume_performance_class = var.boot_volume_performance_class
   ubuntu_image_name_regex       = var.ubuntu_image_name_regex
 }
-

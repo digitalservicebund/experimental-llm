@@ -90,6 +90,8 @@ jobs:
       TF_VAR_existing_network_id: ${{ github.event.inputs.existing_network_id || '7cdd4ee0-cb53-40b7-b8e8-50a324c261f8' }}
       TF_VAR_vm_enabled: ${{ github.event.inputs.vm_enabled || 'true' }}
       TF_VAR_bootstrap_ssh_public_key: ${{ github.event.inputs.bootstrap_ssh_public_key || vars.BOOTSTRAP_SSH_PUBLIC_KEY }}
+      TF_VAR_backend_access_key_id: ${{ secrets.BACKEND_ACCESS_KEY_ID }}
+      TF_VAR_backend_secret_access_key: ${{ secrets.BACKEND_SECRET_ACCESS_KEY }}
 
     steps:
       - name: Check out repository

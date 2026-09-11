@@ -9,6 +9,18 @@ variable "project_id" {
   description = "STACKIT project ID that owns the non-production resources."
 }
 
+variable "backend_access_key_id" {
+  type        = string
+  sensitive   = true
+  description = "Access key for the backend object bucket."
+}
+
+variable "backend_secret_access_key" {
+  type        = string
+  sensitive   = true
+  description = "Secret key for the backend object bucket."
+}
+
 variable "existing_network_id" {
   type        = string
   description = "ID of the existing STACKIT network named llm."
