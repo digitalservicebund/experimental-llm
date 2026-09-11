@@ -180,6 +180,6 @@
     use_proxy: false
   register: vllm_health_check
   retries: 60
-  delay: 2
+  delay: 5
   until: vllm_health_check.status == 200
   changed_when: false

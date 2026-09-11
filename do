@@ -3,7 +3,6 @@ set -euo pipefail
 
 repo_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 ansible_dir="${repo_dir}/ansible"
-terraform_workflow="terraform.yml"
 
 usage() {
   cat <<'EOF'
@@ -40,26 +39,9 @@ case "${command}" in
     ;;
 
   apply)
-    vm_enabled="${1:-${VM_ENABLED:-true}}"
-
-    if ! command -v gh >/dev/null 2>&1; then
-      echo "gh CLI is required to dispatch the Terraform workflow." >&2
-      exit 1
-    fi
-
-    gh workflow run "${terraform_workflow}" \
-      --ref "$(git -C "${repo_dir}" branch --show-current)" \
-      --field project_id="${TF_PROJECT_ID_NON_PROD:-8f43ea04-9012-4cd7-8d14-d4e202c9ddc0}" \
-      --field existing_network_id="${TF_NETWORK_ID_NON_PROD:-7cdd4ee0-cb53-40b7-b8e8-50a324c261f8}" \
-      --field vm_enabled="${vm_enabled}"
-
-    gh run watch --workflow "${terraform_workflow}" --latest --exit-status
-
-    if [[ "${RUN_ANSIBLE_AFTER_TERRAFORM:-true}" == "true" ]]; then
-      cd "${ansible_dir}"
-      op run --env-file=.env.op -- ansible-playbook playbooks/site.yml \
-        -i inventories/production/hosts.yml
-    fi
+    cd "${ansible_dir}"
+    op run --env-file=.env.op -- ansible-playbook playbooks/site.yml \
+      -i inventories/production/hosts.yml
     ;;
 
   ping)
