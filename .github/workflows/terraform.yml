@@ -99,7 +99,7 @@ jobs:
         uses: digitalservicebund/setup-terraform@adfabd79951446bc3078797c9cce4511328a8573 # v1
 
       - name: Run STACKIT Terraform execution
-        uses: digitalservicebund/stackit-terraform-execution@4de69952e8f6664a1ee6a75346111e4671b3b142 # v1
+        uses: digitalservicebund/stackit-terraform-execution@8f384368dea8c3b71b24b5dbf5f8256362d14513
         with:
           terraform_module: terraform/non-prod
           STACKIT_SERVICE_ACCOUNT_EMAIL: ${{ vars.STACKIT_SERVICE_ACCOUNT_EMAIL }}
