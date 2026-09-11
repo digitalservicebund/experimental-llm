@@ -31,18 +31,6 @@ data "stackit_network" "existing" {
   network_id = var.existing_network_id
 }
 
-data "stackit_image_v2" "ubuntu" {
-  project_id     = var.project_id
-  name_regex     = var.ubuntu_image_name_regex
-  sort_ascending = false
-  filter = {
-    os      = "linux"
-    distro  = "ubuntu"
-    version = "26.04"
-    uefi    = true
-  }
-}
-
 data "stackit_machine_type" "vm" {
   count      = var.vm_enabled ? 1 : 0
   project_id = var.project_id
@@ -59,7 +47,7 @@ resource "stackit_volume" "boot" {
 
   source = {
     type = "image"
-    id   = data.stackit_image_v2.ubuntu.id
+    id   = "f73d4ce4-c870-47c2-8622-24b030f2c9c1" # Ubuntu 26.04 x86
   }
 
   lifecycle {
