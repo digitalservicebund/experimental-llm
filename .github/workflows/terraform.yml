@@ -1,0 +1,108 @@
+name: Terraform
+
+on:
+  pull_request:
+    paths:
+      - "terraform/**"
+      - ".github/workflows/terraform.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "terraform/**"
+      - ".github/workflows/terraform.yml"
+  workflow_dispatch:
+    inputs:
+      project_id:
+        description: STACKIT project ID for non-prod
+        required: true
+        type: string
+        default: "8f43ea04-9012-4cd7-8d14-d4e202c9ddc0"
+      existing_network_id:
+        description: STACKIT network ID for non-prod
+        required: true
+        type: string
+        default: "7cdd4ee0-cb53-40b7-b8e8-50a324c261f8"
+      vm_enabled:
+        description: Whether the GPU VM should exist after apply
+        required: true
+        type: choice
+        default: "true"
+        options:
+          - "true"
+          - "false"
+      bootstrap_ssh_public_key:
+        description: Optional override for the SSH public key injected by cloud-init
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write
+
+env:
+  TF_IN_AUTOMATION: true
+
+jobs:
+  fmt:
+    name: Terraform format
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - name: Install Terraform
+        uses: digitalservicebund/setup-terraform@v1
+
+      - name: Check terraform fmt
+        run: terraform fmt -recursive -check terraform
+
+  validate:
+    name: Terraform validate
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    needs: fmt
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - name: Install Terraform
+        uses: digitalservicebund/setup-terraform@v1
+
+      - name: Initialize Terraform without backend
+        run: terraform -chdir=terraform/non-prod init -backend=false -input=false
+
+      - name: Validate Terraform configuration
+        run: terraform -chdir=terraform/non-prod validate
+
+  apply:
+    name: Terraform apply
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    needs: fmt
+
+    env:
+      TF_VAR_project_id: ${{ github.event.inputs.project_id || '8f43ea04-9012-4cd7-8d14-d4e202c9ddc0' }}
+      TF_VAR_existing_network_id: ${{ github.event.inputs.existing_network_id || '7cdd4ee0-cb53-40b7-b8e8-50a324c261f8' }}
+      TF_VAR_vm_enabled: ${{ github.event.inputs.vm_enabled || 'true' }}
+      TF_VAR_bootstrap_ssh_public_key: ${{ github.event.inputs.bootstrap_ssh_public_key || vars.BOOTSTRAP_SSH_PUBLIC_KEY }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - name: Install Terraform
+        uses: digitalservicebund/setup-terraform@v1
+
+      - name: Run STACKIT Terraform execution
+        uses: digitalservicebund/stackit-terraform-execution@v1
+        with:
+          terraform_module: terraform/non-prod
+          STACKIT_SERVICE_ACCOUNT_EMAIL: ${{ vars.STACKIT_SERVICE_ACCOUNT_EMAIL }}
+          BACKEND_ACCESS_KEY_ID: ${{ secrets.BACKEND_ACCESS_KEY_ID }}
+          BACKEND_SECRET_ACCESS_KEY: ${{ secrets.BACKEND_SECRET_ACCESS_KEY }}
+

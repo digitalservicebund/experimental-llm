@@ -1,9 +1,25 @@
 # experimental-llm
 
-[Documentation for agents](./agents.md)
+[Documentation for agents](AGENTS.md)
 
 Ansible configuration for an existing Ubuntu 26.04 NVIDIA server running a
 native Python vLLM OpenAI-compatible API with a configurable Hugging Face model.
+
+Terraform for this repository is executed only from GitHub Actions. The
+`terraform/` directory contains the STACKIT definitions, and the
+`.github/workflows/terraform.yml` workflow uses OIDC/workload identity
+federation.
+
+For bootstrap and setup details, use the upstream guides:
+
+- https://platform-docs.prod.tech.digitalservice.dev/stackit-user-docs/how-to-guides/terraform-github-actions
+- https://github.com/digitalservicebund/terraform-modules/tree/main/stackit-identity-federation
+
+Local Terraform runs can authenticate with a short-lived service account token:
+
+```bash
+export STACKIT_SERVICE_ACCOUNT_TOKEN=$(stackit auth get-access-token)
+```
 
 ## Important prerequisite
 
@@ -83,6 +99,16 @@ From the repository root, use the shared `do` command runner:
 ```bash
 ./do lint
 ```
+
+To trigger the remote Terraform workflow and then continue with Ansible, use:
+
+```bash
+./do apply true
+```
+
+Pass `false` to scale compute down, for example `./do apply false`. The command
+dispatches `.github/workflows/terraform.yml` through the GitHub CLI, waits for
+it to finish, and then runs the Ansible playbook.
 
 Open and unlock the 1Password desktop app, enable **Settings > Developer >
 Integrate with 1Password CLI**, and run `op vault list` once to confirm the CLI

@@ -8,19 +8,19 @@ Deploy a 14-day MVP of an internal LLM Gateway on a STACKIT Cloud environment. T
 - To save costs, the compute instance must be entirely destroyed overnight, but its boot volume must be preserved to avoid reinstalling dependencies and re-downloading the model daily.
 
 ## 2. Architecture & Tech Stack
-*   **Infrastructure Provisioning:** Terraform (Stateful Volume + Ephemeral Compute).
+*   **Infrastructure Provisioning:** Terraform (Stateful Volume + Ephemeral Compute), executed only from GitHub Actions using workload identity federation / OIDC.
 *   **Configuration Management:** Ansible.
 *   **Host Environment:** STACKIT Ephemeral VM with 1x NVIDIA L40S (48GB VRAM) running **Ubuntu 26.04**.
 *   **Model Inference:** `vLLM` serving `Qwen/Qwen2.5-Coder-32B-Instruct-AWQ` natively via Python virtual environment.
 *   **API Gateway:** `LiteLLM Proxy` natively via Python virtual environment.
 *   **Database (Metrics):** Local SQLite DB (LiteLLM default).
-*   **Secrets Management:** 1Password CLI (`op`) and `.env.op` files.
-*   **CI/CD & Automation:** GitHub Actions (for deployment, scheduled compute lifecycle, health checks, and 1Password IP updates).
+*   **Secrets Management:** 1Password CLI (`op`) and `.env.op` files for application/runtime secrets only; Terraform uses GitHub OIDC and does not require stored cloud credentials.
+*   **CI/CD & Automation:** GitHub Actions (for deployment, scheduled compute lifecycle, health checks, and 1Password IP updates, plus all Terraform execution).
 
 ## 3. Scope of Work (MVP)
 
 ### 3.1. Infrastructure & Networking (Terraform)
-*   **Environment Specifics:** Target STACKIT region `EU01` and connect to the existing network `llm` (ID: `7cdd4ee0-cb53-40b7-b8e8-50a324c261f8`).
+*   **Environment Specifics:** Target STACKIT region `EU01` and connect to the existing network `llm` (ID: `7cdd4ee0-cb53-40b7-b8e8-50a324c261f8`). Terraform must follow the infra-template conventions and run from GitHub Actions only; no local Terraform execution or stored STACKIT credentials are required.
 *   **Decoupled Storage & Compute:** Provision a persistent **100 GB Performance Class 6** Block Storage volume for the OS/boot disk. 
 *   **Toggleable Compute:** Provision the STACKIT VM using a variable (e.g., `var.vm_enabled = true/false`). When enabled, boot from the persistent 100 GB volume. When disabled, destroy the VM but retain the volume.
 *   **SSH Key Bootstrapping:** Inject a primary automation/deployer SSH public key via `cloud-init` (user-data) upon initial volume creation to guarantee base access. Subsequent user SSH keys will be managed via Ansible.
@@ -43,11 +43,11 @@ Write idempotent Ansible playbooks meant for initial provisioning, continuous co
 *   **Health-Check Playbook:** Create a dedicated, lightweight Ansible playbook (`healthcheck.yml`) that verifies both `systemd` services are running and that the LiteLLM endpoint returns a 200 OK status on `127.0.0.1:4000/health`.
 
 ### 3.3. Scheduled Ephemeral Compute (GitHub Actions)
-*   **Scale Down (20:00 CET/CEST, Mon-Fri):** Runs `terraform apply -var="vm_enabled=false"` to completely destroy the GPU instance (stopping billing) while leaving the state and persistent volume intact.
+*   **Scale Down (20:00 CET/CEST, Mon-Fri):** Runs the GitHub Actions Terraform workflow with `vm_enabled=false` to completely destroy the GPU instance (stopping billing) while leaving the state and persistent volume intact. The workflow uses OIDC-based authentication and no long-lived Terraform credentials.
 *   **Scale Up (08:00 CET/CEST, Mon-Fri):** 
-    1. Runs `terraform apply -var="vm_enabled=true"` to recreate the VM and attach the boot volume.
+    1. Runs the GitHub Actions Terraform workflow with `vm_enabled=true` to recreate the VM and attach the boot volume.
     2. Runs the Ansible `healthcheck.yml` playbook to verify the gateway successfully recovered and is responding.
-    3. Uses the 1Password CLI (authenticated via Service Account token) to update the daily Public IP in the 1Password vault (e.g., updating the item containing `SERVER_PUBLIC_IP="op://z3yr24dkqmdjsvc724nouabjpi/eslyhyeireaxhtopettp7fxbwm/server-public-ip"`).
+    3. Uses the 1Password CLI to update the daily Public IP in the 1Password vault (e.g., updating the item containing `SERVER_PUBLIC_IP="op://z3yr24dkqmdjsvc724nouabjpi/eslyhyeireaxhtopettp7fxbwm/server-public-ip"`).
 
 ## 4. Definition of Done (DoD) for the Agent
 1.  **Terraform:** Working `.tf` files referencing the `EU01` region, `llm` network, and separated 100 GB Performance Class 6 volume.
@@ -56,7 +56,7 @@ Write idempotent Ansible playbooks meant for initial provisioning, continuous co
 4.  **`README.md` & `do` Script**:
     *   A brief `README.md` explaining the project architecture and how to query the LiteLLM endpoint with a test key.
     *   A `do` bash script (`./do <command>`) that serves as a task runner for common operations, including:
-        *   `./do apply`: Applies the Terraform and Ansible playbooks initially (locally).
+        *   `./do apply`: Triggers the GitHub Actions Terraform workflow and then runs the Ansible playbooks.
         *   `./do tunnel`: Uses the 1Password CLI to fetch the daily IP address and automatically opens the SSH tunnel (`ssh -N -L 4000:127.0.0.1:4000 <user>@$(op read op://.../server-public-ip)`).
         *   `./do lint`: Runs formatters and linters on the Terraform (`terraform fmt` / `tflint`) and Ansible (`ansible-lint`) code.
 
