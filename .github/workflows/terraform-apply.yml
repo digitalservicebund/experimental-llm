@@ -1,0 +1,61 @@
+name: Terraform Apply
+
+on:
+  workflow_call:
+    inputs:
+      project_id:
+        description: STACKIT project ID for non-prod
+        required: false
+        type: string
+        default: "8f43ea04-9012-4cd7-8d14-d4e202c9ddc0"
+      existing_network_id:
+        description: STACKIT network ID for non-prod
+        required: false
+        type: string
+        default: "7cdd4ee0-cb53-40b7-b8e8-50a324c261f8"
+      vm_enabled:
+        description: Whether the GPU VM should exist after apply
+        required: false
+        type: string
+        default: "true"
+      bootstrap_ssh_public_key:
+        description: Optional override for the SSH public key injected by cloud-init
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  TF_IN_AUTOMATION: true
+
+jobs:
+  apply:
+    name: Terraform apply
+    runs-on: ubuntu-latest
+
+    env:
+      TF_VAR_project_id: ${{ inputs.project_id }}
+      TF_VAR_existing_network_id: ${{ inputs.existing_network_id }}
+      TF_VAR_vm_enabled: ${{ inputs.vm_enabled }}
+      TF_VAR_bootstrap_ssh_public_key: ${{ inputs.bootstrap_ssh_public_key || vars.BOOTSTRAP_SSH_PUBLIC_KEY }}
+      TF_VAR_backend_access_key_id: ${{ secrets.BACKEND_ACCESS_KEY_ID }}
+      TF_VAR_backend_secret_access_key: ${{ secrets.BACKEND_SECRET_ACCESS_KEY }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - name: Install Terraform
+        uses: digitalservicebund/setup-terraform@adfabd79951446bc3078797c9cce4511328a8573 # v1
+
+      - name: Run STACKIT Terraform execution
+        uses: digitalservicebund/stackit-terraform-execution@8f384368dea8c3b71b24b5dbf5f8256362d14513
+        with:
+          terraform_module: terraform/non-prod
+          STACKIT_SERVICE_ACCOUNT_EMAIL: ${{ vars.STACKIT_SERVICE_ACCOUNT_EMAIL }}
+          BACKEND_ACCESS_KEY_ID: ${{ secrets.BACKEND_ACCESS_KEY_ID }}
+          BACKEND_SECRET_ACCESS_KEY: ${{ secrets.BACKEND_SECRET_ACCESS_KEY }}
+
