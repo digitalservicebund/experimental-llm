@@ -27,6 +27,7 @@ check "vm_machine_type_required_when_vm_enabled" {
 }
 
 data "stackit_network" "existing" {
+  count      = var.vm_enabled ? 1 : 0
   project_id = var.project_id
   network_id = var.existing_network_id
 }
@@ -101,7 +102,7 @@ resource "stackit_security_group_rule" "ssh_ipv6" {
 resource "stackit_network_interface" "server" {
   count      = var.vm_enabled ? 1 : 0
   project_id = var.project_id
-  network_id = data.stackit_network.existing.network_id
+  network_id = data.stackit_network.existing[0].network_id
   name       = local.network_interface_name
 
   security_group_ids = [stackit_security_group.ssh.security_group_id]
