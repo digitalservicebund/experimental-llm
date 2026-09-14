@@ -1,0 +1,136 @@
+---
+- name: Remove old LiteLLM virtualenv (force recreate with Python 3.12)
+  ansible.builtin.file:
+    path: "{{ litellm_virtualenv }}"
+    state: absent
+
+- name: Install LiteLLM proxy Python package
+  ansible.builtin.pip:
+    name:
+      - "litellm[proxy]=={{ litellm_version }}"
+    virtualenv: "{{ litellm_virtualenv }}"
+    virtualenv_command: "python3.12 -m venv"
+    state: present
+  notify: Restart LiteLLM
+
+- name: Install prisma separately (needed by litellm even without database)
+  ansible.builtin.pip:
+    name: prisma
+    virtualenv: "{{ litellm_virtualenv }}"
+    state: present
+
+- name: Generate Prisma client from LiteLLM schema
+  ansible.builtin.shell: |
+    set -e
+    source {{ litellm_virtualenv }}/bin/activate
+    SCHEMA_PATH=$(python3 -c \
+      "import litellm, os; \
+      print(os.path.join(os.path.dirname(litellm.__file__), 'proxy/schema.prisma'))")
+    prisma generate --schema "$SCHEMA_PATH"
+  args:
+    executable: /bin/bash
+  changed_when: true
+  environment:
+    PATH: "{{ litellm_virtualenv }}/bin:{{ ansible_env.PATH }}"
+    HOME: /root
+
+- name: Run Prisma migrations to create database tables
+  ansible.builtin.shell: |
+    set -e
+    source {{ litellm_virtualenv }}/bin/activate
+    SCHEMA_PATH=$(python3 -c \
+      "import litellm, os; \
+      print(os.path.join(os.path.dirname(litellm.__file__), 'proxy/schema.prisma'))")
+    prisma migrate deploy --schema "$SCHEMA_PATH"
+  args:
+    executable: /bin/bash
+  changed_when: true
+  environment:
+    PATH: "{{ litellm_virtualenv }}/bin:{{ ansible_env.PATH }}"
+    HOME: /root
+    DATABASE_URL: "postgresql://{{ litellm_db_user }}:{{ litellm_db_password }}@{{ litellm_db_host }}:{{ litellm_db_port }}/{{ litellm_db_name }}"
+
+- name: Create LiteLLM service account
+  ansible.builtin.user:
+    name: "{{ litellm_service_user }}"
+    system: true
+    home: /var/lib/litellm
+    create_home: true
+    shell: /usr/sbin/nologin
+
+- name: Create LiteLLM log directory
+  ansible.builtin.file:
+    path: /var/log/litellm
+    state: directory
+    owner: "{{ litellm_service_user }}"
+    group: "{{ litellm_service_user }}"
+    mode: "0750"
+
+- name: Create LiteLLM configuration directory
+  ansible.builtin.file:
+    path: /etc/litellm
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Write LiteLLM proxy configuration file
+  ansible.builtin.template:
+    src: litellm-config.yaml.j2
+    dest: /etc/litellm/config.yaml
+    owner: root
+    group: "{{ litellm_service_user }}"
+    mode: "0640"
+  notify: Restart LiteLLM
+
+- name: Write LiteLLM environment file for secrets
+  ansible.builtin.template:
+    src: litellm.env.j2
+    dest: /etc/litellm.env
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Restart LiteLLM
+
+- name: Wait for PostgreSQL to be ready
+  ansible.builtin.wait_for:
+    host: "{{ litellm_db_host }}"
+    port: "{{ litellm_db_port }}"
+    delay: 2
+    timeout: 30
+  changed_when: false
+
+- name: Install LiteLLM systemd service
+  ansible.builtin.template:
+    src: litellm.service.j2
+    dest: /etc/systemd/system/litellm.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd
+    - Restart LiteLLM
+
+- name: Enable LiteLLM
+  ansible.builtin.systemd_service:
+    name: litellm
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Flush handlers before health check
+  ansible.builtin.meta: flush_handlers
+
+- name: Check LiteLLM health endpoint
+  ansible.builtin.uri:
+    url: "http://{{ litellm_proxy_host }}:{{ litellm_proxy_port }}/health"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ litellm_master_key }}"
+    status_code: [200, 401]
+    use_proxy: false
+  register: litellm_health_check
+  retries: 60
+  delay: 5
+  until: litellm_health_check.status in [200, 401]
+  changed_when: false

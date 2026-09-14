@@ -84,7 +84,7 @@
   ansible.builtin.pip:
     name: "vllm=={{ vllm_version }}"
     virtualenv: "{{ llm_virtualenv }}"
-    virtualenv_command: python3 -m venv
+    virtualenv_command: "python3.12 -m venv"
     extra_args: "--extra-index-url {{ vllm_torch_index }}"
     state: present
   notify: Restart vLLM

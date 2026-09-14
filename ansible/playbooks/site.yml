@@ -17,11 +17,17 @@
           - vllm_version | length > 0
         fail_msg: Set vllm_version to a tested, pinned vLLM version.
 
-    - name: Require an API key
+    - name: Require a LiteLLM master key for Virtual Key generation
       ansible.builtin.assert:
         that:
-          - llm_api_key | length > 0
-        fail_msg: Store llm_api_key in an encrypted variable before deploying.
+          - litellm_master_key | length > 0
+        fail_msg: Set litellm_master_key in an encrypted variable before deploying (used to generate Virtual Keys via /key/generate).
+
+    - name: Require PostgreSQL password for LiteLLM database
+      ansible.builtin.assert:
+        that:
+          - postgresql_litellm_password | length > 0
+        fail_msg: Set postgresql_litellm_password in an encrypted variable before deploying (used by LiteLLM to connect to PostgreSQL).
 
     - name: Require Ubuntu 26.04
       ansible.builtin.assert:
@@ -32,4 +38,14 @@
 
   roles:
     - role: common
+      tags:
+        - common
+    - role: postgresql
+      tags:
+        - postgresql
     - role: vllm
+      tags:
+        - vllm
+    - role: litellm
+      tags:
+        - litellm

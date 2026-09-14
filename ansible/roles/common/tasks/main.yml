@@ -47,6 +47,27 @@
       - python3-venv
       # Triton JIT-compiles CUDA helpers at runtime and needs Python.h.
       - python3-dev
+      - software-properties-common
+    state: present
+    lock_timeout: 120
+
+- name: Add deadsnakes PPA for Python 3.12
+  ansible.builtin.shell: |
+    add-apt-repository -y ppa:deadsnakes/ppa
+  args:
+    creates: /etc/apt/sources.list.d/deadsnakes-ubuntu-ppa-*.list
+
+- name: Update apt cache after adding PPA
+  ansible.builtin.apt:
+    update_cache: true
+    lock_timeout: 120
+
+- name: Install Python 3.12 (required for uvloop/prisma compatibility)
+  ansible.builtin.apt:
+    name:
+      - python3.12
+      - python3.12-venv
+      - python3.12-dev
     state: present
     lock_timeout: 120
 

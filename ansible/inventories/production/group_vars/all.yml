@@ -24,7 +24,7 @@ llm_virtualenv: /opt/vllm/venv
 llm_prune_old_models: true
 
 # Pin this after validating the NVIDIA driver and Python environment.
-vllm_version: "v0.28.0"
+vllm_version: "v0.29.0"
 # Must match the CUDA major version vLLM's wheels are built against (13), or
 # torch pulls a cu12 stack and vllm._C_stable_libtorch fails on libcudart.so.13.
 vllm_torch_index: https://download.pytorch.org/whl/cu130
@@ -34,12 +34,17 @@ llm_max_model_len: 65536
 llm_tensor_parallel_size: 1
 llm_gpu_memory_utilization: 0.90
 
-llm_api_key: "{{ lookup('ansible.builtin.env', 'LLM_KEY_1') }}"
-
-# Keep the API bound to the host. Expose it through a reverse proxy or a tightly
-# restricted STACKIT security group rather than opening port 8000 broadly.
+# Keep the vLLM API bound to the host. It's accessed only by LiteLLM proxy on localhost.
 llm_api_host: 0.0.0.0
 
 # The workstation secret wrapper provides this only for the duration of a run.
 # Leave HF_TOKEN unset for public model repositories.
 llm_huggingface_token: "{{ lookup('ansible.builtin.env', 'HF_TOKEN') }}"
+
+# LiteLLM Proxy Configuration
+# Master key for securing the /key/generate endpoint (generate Virtual Keys post-deployment)
+litellm_master_key: "{{ lookup('ansible.builtin.env', 'LLM_MASTER_KEY') }}"
+
+# PostgreSQL Configuration for LiteLLM
+# Database password for the litellm user (used by LiteLLM proxy for metrics, spend logs, key storage)
+postgresql_litellm_password: "{{ lookup('ansible.builtin.env', 'POSTGRESQL_PASSWORD') }}"

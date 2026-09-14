@@ -1,0 +1,41 @@
+# LiteLLM Proxy Configuration
+# Routes traffic to the local vLLM service and provides API authentication via Virtual Keys
+#
+# IMPORTANT: API keys are NOT defined in this file. Instead:
+# 1. The proxy uses a master_key to secure the /key/generate endpoint
+# 2. Once the proxy is running, generate Virtual Keys with:
+#    curl -X POST http://127.0.0.1:4000/key/generate \
+#      -H "Authorization: Bearer <MASTER_KEY>" \
+#      -H "Content-Type: application/json" \
+#      -d '{"key_alias": "test_key_1"}'
+# 3. Generated keys are stored in PostgreSQL and persisted across restarts
+# 4. Use these keys to authenticate requests to the proxy
+
+# General settings for the proxy
+general_settings:
+  # Database configuration for metrics, spend logs, and key storage (PostgreSQL)
+  database_url: "postgresql://{{ litellm_db_user }}:{{ litellm_db_password }}@{{ litellm_db_host }}:{{ litellm_db_port }}/{{ litellm_db_name }}"
+
+# Master key for securing the /key/generate endpoint
+# Resolved from 1Password environment variable at runtime
+master_key: "{{ litellm_master_key }}"
+
+# Logging and behavior settings
+litellm_settings:
+  log_level: "INFO"
+  debug: false
+  # Don't drop parameters; let them pass to the backend
+  drop_params: false
+  # Pass through HTTP error codes that should not be retried
+  pass_through_error_codes: [429, 500, 502, 503, 504]
+
+# Router configuration: map models to backend endpoints
+router_settings:
+  default_max_retries: 3
+  default_timeout: 600
+model_list:
+  - model_name: qwen2.5-coder-32b
+    litellm_params:
+      model: openai/qwen2.5-coder-32b
+      api_base: "http://{{ litellm_upstream_host }}:{{ litellm_upstream_port }}/v1"
+      api_version: "2024-01-01"

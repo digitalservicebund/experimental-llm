@@ -1,0 +1,30 @@
+---
+# LiteLLM Proxy configuration defaults
+
+# LiteLLM version to install (pinned for stability and reproducibility)
+litellm_version: "1.100.1"
+
+# LiteLLM virtualenv path
+litellm_virtualenv: /opt/litellm/venv
+
+# LiteLLM service user
+litellm_service_user: litellm
+
+# LiteLLM proxy port (must be different from vLLM port)
+litellm_proxy_port: 4000
+
+# LiteLLM proxy host binding (keep on localhost, expose via SSH tunnel)
+litellm_proxy_host: 127.0.0.1
+
+# PostgreSQL database configuration for LiteLLM
+# NOTE: Connection string format: postgresql://user:password@host:port/database
+litellm_db_host: localhost
+litellm_db_port: 5432
+litellm_db_name: litellm
+litellm_db_user: litellm
+# NOTE: litellm_db_password is inherited from postgresql_litellm_password in group_vars
+litellm_db_password: "{{ postgresql_litellm_password }}"
+
+# Upstream vLLM service endpoint
+litellm_upstream_host: 127.0.0.1
+litellm_upstream_port: 8000
