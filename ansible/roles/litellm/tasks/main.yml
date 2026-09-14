@@ -4,22 +4,42 @@
     path: "{{ litellm_virtualenv }}"
     state: absent
 
-- name: Install LiteLLM proxy Python package
+- name: Create LiteLLM service account
+  ansible.builtin.user:
+    name: "{{ litellm_service_user }}"
+    system: true
+    home: /var/lib/litellm
+    create_home: true
+    shell: /usr/sbin/nologin
+
+- name: Create LiteLLM virtualenv parent directory
+  ansible.builtin.file:
+    path: "{{ litellm_virtualenv | dirname }}"
+    state: directory
+    owner: "{{ litellm_service_user }}"
+    group: "{{ litellm_service_user }}"
+    mode: "0755"
+
+- name: Install LiteLLM proxy Python package as litellm user
   ansible.builtin.pip:
     name:
       - "litellm[proxy]=={{ litellm_version }}"
     virtualenv: "{{ litellm_virtualenv }}"
     virtualenv_command: "python3.12 -m venv"
     state: present
+  become: true
+  become_user: "{{ litellm_service_user }}"
   notify: Restart LiteLLM
 
-- name: Install prisma separately (needed by litellm even without database)
+- name: Install prisma separately as litellm user
   ansible.builtin.pip:
     name: prisma
     virtualenv: "{{ litellm_virtualenv }}"
     state: present
+  become: true
+  become_user: "{{ litellm_service_user }}"
 
-- name: Generate Prisma client from LiteLLM schema
+- name: Generate Prisma client from LiteLLM schema as litellm user
   ansible.builtin.shell: |
     set -e
     source {{ litellm_virtualenv }}/bin/activate
@@ -29,34 +49,114 @@
     prisma generate --schema "$SCHEMA_PATH"
   args:
     executable: /bin/bash
+  become: true
+  become_user: "{{ litellm_service_user }}"
   changed_when: true
   environment:
-    PATH: "{{ litellm_virtualenv }}/bin:{{ ansible_env.PATH }}"
-    HOME: /root
+    PATH: "{{ litellm_virtualenv }}/bin:{{ ansible_facts['env']['PATH'] }}"
+    HOME: /var/lib/litellm
 
-- name: Run Prisma migrations to create database tables
+- name: Ensure LiteLLM database user has schema permissions
+  community.postgresql.postgresql_privs:
+    database: "{{ litellm_db_name }}"
+    privs: ALL
+    type: schema
+    obj: public
+    role: "{{ litellm_db_user }}"
+  become: true
+  become_user: postgres
+  changed_when: false
+
+- name: Grant default privileges on tables to LiteLLM user
+  community.postgresql.postgresql_query:
+    db: "{{ litellm_db_name }}"
+    query: |
+      ALTER DEFAULT PRIVILEGES IN SCHEMA public
+      GRANT ALL ON TABLES TO "{{ litellm_db_user }}";
+      ALTER DEFAULT PRIVILEGES IN SCHEMA public
+      GRANT ALL ON SEQUENCES TO "{{ litellm_db_user }}";
+  become: true
+  become_user: postgres
+  changed_when: false
+
+- name: Run Prisma db push to create database schema as litellm user
+  ansible.builtin.shell: |
+    set -e -o pipefail
+    source {{ litellm_virtualenv }}/bin/activate
+    SCHEMA_PATH=$(python3 -c "import litellm, os; print(os.path.join(os.path.dirname(litellm.__file__), 'proxy/schema.prisma'))")
+    echo "Schema path: $SCHEMA_PATH"
+    echo "Running prisma db push..."
+    prisma db push --schema "$SCHEMA_PATH" --skip-generate --accept-data-loss
+  args:
+    executable: /bin/bash
+  become: true
+  become_user: "{{ litellm_service_user }}"
+  register: litellm_prisma_push_result
+  changed_when: "'Prisma schema loaded' in litellm_prisma_push_result.stdout"
+  environment:
+    PATH: "{{ litellm_virtualenv }}/bin:{{ ansible_facts['env']['PATH'] }}"
+    HOME: /var/lib/litellm
+    DATABASE_URL: "postgresql://{{ litellm_db_user }}:{{ litellm_db_password }}@{{ litellm_db_host }}:{{ litellm_db_port }}/{{ litellm_db_name }}"
+
+- name: Display Prisma db push output
+  ansible.builtin.debug:
+    var: litellm_prisma_push_result.stdout_lines
+  changed_when: false
+
+- name: Verify database tables were created
+  ansible.builtin.shell: |
+    set -o pipefail
+    psql -h {{ litellm_db_host }} -U {{ litellm_db_user }} -d {{ litellm_db_name }} -c "\dt public.*" | head -20
+  environment:
+    PGPASSWORD: "{{ litellm_db_password }}"
+  changed_when: false
+  register: litellm_table_list
+
+- name: Display created tables
+  ansible.builtin.debug:
+    var: litellm_table_list.stdout_lines
+  changed_when: false
+
+- name: Regenerate Prisma client after migrations as litellm user
   ansible.builtin.shell: |
     set -e
     source {{ litellm_virtualenv }}/bin/activate
     SCHEMA_PATH=$(python3 -c \
       "import litellm, os; \
       print(os.path.join(os.path.dirname(litellm.__file__), 'proxy/schema.prisma'))")
-    prisma migrate deploy --schema "$SCHEMA_PATH"
+    prisma generate --schema "$SCHEMA_PATH"
   args:
     executable: /bin/bash
+  become: true
+  become_user: "{{ litellm_service_user }}"
   changed_when: true
   environment:
-    PATH: "{{ litellm_virtualenv }}/bin:{{ ansible_env.PATH }}"
-    HOME: /root
+    PATH: "{{ litellm_virtualenv }}/bin:{{ ansible_facts['env']['PATH'] }}"
+    HOME: /var/lib/litellm
+
+- name: Verify Prisma migrations deployed successfully
+  ansible.builtin.shell: |
+    set -e
+    source {{ litellm_virtualenv }}/bin/activate
+    SCHEMA_PATH=$(python3 -c "import litellm, os; print(os.path.join(os.path.dirname(litellm.__file__), 'proxy/schema.prisma'))")
+    prisma validate --schema "$SCHEMA_PATH"
+  args:
+    executable: /bin/bash
+  become: true
+  become_user: "{{ litellm_service_user }}"
+  changed_when: false
+  environment:
+    PATH: "{{ litellm_virtualenv }}/bin:{{ ansible_facts['env']['PATH'] }}"
+    HOME: /var/lib/litellm
     DATABASE_URL: "postgresql://{{ litellm_db_user }}:{{ litellm_db_password }}@{{ litellm_db_host }}:{{ litellm_db_port }}/{{ litellm_db_name }}"
 
-- name: Create LiteLLM service account
-  ansible.builtin.user:
-    name: "{{ litellm_service_user }}"
-    system: true
-    home: /var/lib/litellm
-    create_home: true
-    shell: /usr/sbin/nologin
+- name: Create LiteLLM cache directory for Prisma binaries
+  ansible.builtin.file:
+    path: /var/lib/litellm/.cache
+    state: directory
+    owner: "{{ litellm_service_user }}"
+    group: "{{ litellm_service_user }}"
+    mode: "0700"
 
 - name: Create LiteLLM log directory
   ansible.builtin.file:

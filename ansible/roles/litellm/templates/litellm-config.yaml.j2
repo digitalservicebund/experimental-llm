@@ -34,8 +34,9 @@ router_settings:
   default_max_retries: 3
   default_timeout: 600
 model_list:
-  - model_name: qwen2.5-coder-32b
+  - model_name: "{{ llm_model }}"
     litellm_params:
-      model: openai/qwen2.5-coder-32b
+      model: "openai/{{ llm_model }}"
       api_base: "http://{{ litellm_upstream_host }}:{{ litellm_upstream_port }}/v1"
+      api_key: "local-vllm-key"
       api_version: "2024-01-01"
