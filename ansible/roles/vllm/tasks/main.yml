@@ -107,7 +107,7 @@
 
 - name: Ensure vLLM tool parser assets directory exists
   ansible.builtin.file:
-    path: "{{ llm_tool_parser_assets_dir }}"
+    path: "{{ vllm_tool_parser_assets_dir }}"
     state: directory
     owner: root
     group: root
@@ -155,7 +155,7 @@
 - name: Copy local Qwen2.5-Coder tool parser plugin
   ansible.builtin.copy:
     src: qwen2_5_coder_tool_parser.py
-    dest: "{{ llm_tool_parser_assets_dir }}/qwen2_5_coder_tool_parser.py"
+    dest: "{{ vllm_tool_parser_assets_dir }}/qwen2_5_coder_tool_parser.py"
     owner: root
     group: root
     mode: "0644"
@@ -164,7 +164,7 @@
 - name: Copy local Qwen2.5-Coder chat template
   ansible.builtin.copy:
     src: tool_chat_template_qwen2_5_coder.jinja
-    dest: "{{ llm_tool_parser_assets_dir }}/tool_chat_template_qwen2_5_coder.jinja"
+    dest: "{{ vllm_tool_parser_assets_dir }}/tool_chat_template_qwen2_5_coder.jinja"
     owner: root
     group: root
     mode: "0644"
@@ -174,6 +174,7 @@
   ansible.builtin.template:
     src: vllm.service.j2
     dest: /etc/systemd/system/vllm.service
+    mode: "0644"
   notify:
     - Reload systemd
     - Restart vLLM

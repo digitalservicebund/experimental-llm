@@ -1,6 +1,6 @@
 ---
 - name: Install PostgreSQL packages
-  apt:
+  ansible.builtin.apt:
     name:
       - postgresql-{{ postgresql_version }}
       - postgresql-contrib-{{ postgresql_version }}
@@ -67,4 +67,3 @@
     port: "{{ postgresql_port }}"
     state: started
     timeout: 30
-
