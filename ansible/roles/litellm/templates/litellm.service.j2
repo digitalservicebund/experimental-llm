@@ -1,0 +1,47 @@
+[Unit]
+Description=LiteLLM Proxy Server for vLLM
+Documentation=https://docs.litellm.ai/
+After=vllm.service
+Wants=vllm.service
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User={{ litellm_service_user }}
+Group={{ litellm_service_user }}
+WorkingDirectory=/var/lib/litellm
+
+# Load secrets from environment file
+EnvironmentFile=/etc/litellm.env
+
+# Run the LiteLLM proxy with the config file
+ExecStart={{ litellm_virtualenv }}/bin/litellm \
+  --config /etc/litellm/config.yaml \
+  --port {{ litellm_proxy_port }} \
+  --host {{ litellm_proxy_host }}
+
+# Restart behavior
+Restart=always
+RestartSec=10
+
+# Graceful shutdown for streaming connections
+# TimeoutStopSec defines how long systemd waits for the process to exit
+# after sending SIGTERM before sending SIGKILL (default 90s is too long for
+# streaming connections; 30s allows graceful draining of active connections)
+TimeoutStopSec=30
+
+# Process isolation
+NoNewPrivileges=true
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=65536
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=litellm
+
+[Install]
+WantedBy=multi-user.target

@@ -84,7 +84,7 @@
   ansible.builtin.pip:
     name: "vllm=={{ vllm_version }}"
     virtualenv: "{{ llm_virtualenv }}"
-    virtualenv_command: python3 -m venv
+    virtualenv_command: "python3.12 -m venv"
     extra_args: "--extra-index-url {{ vllm_torch_index }}"
     state: present
   notify: Restart vLLM
@@ -104,6 +104,14 @@
     owner: "{{ llm_service_user }}"
     group: "{{ llm_service_user }}"
     mode: "0750"
+
+- name: Ensure vLLM tool parser assets directory exists
+  ansible.builtin.file:
+    path: "{{ vllm_tool_parser_assets_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
 
 - name: Find cached model repositories
   ansible.builtin.find:
@@ -141,17 +149,31 @@
   ansible.builtin.template:
     src: vllm.env.j2
     dest: /etc/vllm.env
+    mode: "0600"
+  notify: Restart vLLM
+
+- name: Copy local Qwen2.5-Coder tool parser plugin
+  ansible.builtin.copy:
+    src: qwen2_5_coder_tool_parser.py
+    dest: "{{ vllm_tool_parser_assets_dir }}/qwen2_5_coder_tool_parser.py"
     owner: root
     group: root
-    mode: "0600"
+    mode: "0644"
+  notify: Restart vLLM
+
+- name: Copy local Qwen2.5-Coder chat template
+  ansible.builtin.copy:
+    src: tool_chat_template_qwen2_5_coder.jinja
+    dest: "{{ vllm_tool_parser_assets_dir }}/tool_chat_template_qwen2_5_coder.jinja"
+    owner: root
+    group: root
+    mode: "0644"
   notify: Restart vLLM
 
 - name: Install vLLM systemd service
   ansible.builtin.template:
     src: vllm.service.j2
     dest: /etc/systemd/system/vllm.service
-    owner: root
-    group: root
     mode: "0644"
   notify:
     - Reload systemd

@@ -1,0 +1,69 @@
+---
+- name: Install PostgreSQL packages
+  ansible.builtin.apt:
+    name:
+      - postgresql-{{ postgresql_version }}
+      - postgresql-contrib-{{ postgresql_version }}
+      - python3-psycopg2
+    state: present
+    update_cache: true
+  become: true
+
+- name: Ensure PostgreSQL service is running
+  ansible.builtin.systemd_service:
+    name: postgresql
+    state: started
+    enabled: true
+    daemon_reload: true
+  become: true
+
+- name: Create LiteLLM database
+  community.postgresql.postgresql_db:
+    name: "{{ postgresql_litellm_db }}"
+    state: present
+  become: true
+  become_user: postgres
+
+- name: Create LiteLLM database user
+  community.postgresql.postgresql_user:
+    name: "{{ postgresql_litellm_user }}"
+    password: "{{ postgresql_litellm_password }}"
+    state: present
+    expires: null
+  become: true
+  become_user: postgres
+
+- name: Grant LiteLLM user permissions on LiteLLM database
+  community.postgresql.postgresql_privs:
+    database: "{{ postgresql_litellm_db }}"
+    privs: ALL
+    type: database
+    role: "{{ postgresql_litellm_user }}"
+  become: true
+  become_user: postgres
+
+- name: Grant LiteLLM user permissions on public schema
+  community.postgresql.postgresql_privs:
+    database: "{{ postgresql_litellm_db }}"
+    privs: ALL
+    type: schema
+    obj: public
+    role: "{{ postgresql_litellm_user }}"
+  become: true
+  become_user: postgres
+
+- name: Grant default table privileges to LiteLLM user
+  community.postgresql.postgresql_query:
+    db: "{{ postgresql_litellm_db }}"
+    query: |
+      ALTER DEFAULT PRIVILEGES IN SCHEMA public
+      GRANT ALL ON TABLES TO "{{ postgresql_litellm_user }}"
+  become: true
+  become_user: postgres
+
+- name: Ensure PostgreSQL is accepting connections
+  ansible.builtin.wait_for:
+    host: localhost
+    port: "{{ postgresql_port }}"
+    state: started
+    timeout: 30

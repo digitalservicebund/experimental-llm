@@ -10,11 +10,13 @@ Usage: ./do <command> [args]
 
 Commands:
   lint             Run local Ansible lint and syntax checks.
-  apply [vm_enabled]
-                   Dispatch non-prod Terraform workflow, then run Ansible.
+  apply [tags]     Run Ansible apply. Optional: specify tags to limit tasks.
+                   Common tags: common, postgresql, vllm, litellm
+                   Example: ./do apply litellm
   ping [args...]   Ping hosts in llm_servers.
   login [args...]  SSH into the server from 1Password.
   tunnel           Open SSH tunnel to remote vLLM API.
+  generate-keys    Generate Virtual Keys for LiteLLM proxy authentication.
   help             Show this help text.
 EOF
 }
@@ -40,8 +42,16 @@ case "${command}" in
 
   apply)
     cd "${ansible_dir}"
-    op run --env-file=.env.op -- ansible-playbook playbooks/site.yml \
-      -i inventories/production/hosts.yml
+    if [[ $# -gt 0 ]]; then
+      # If tags are provided, run only those tags
+      op run --env-file=.env.op -- ansible-playbook playbooks/site.yml \
+        -i inventories/production/hosts.yml \
+        --tags "$@"
+    else
+      # Run full playbook
+      op run --env-file=.env.op -- ansible-playbook playbooks/site.yml \
+        -i inventories/production/hosts.yml
+    fi
     ;;
 
   ping)
@@ -76,6 +86,19 @@ case "${command}" in
         -o ServerAliveInterval=30 \
         -o ServerAliveCountMax=3 \
         "${VLLM_SSH_USER}@${SERVER_PUBLIC_IP}"
+    '
+    ;;
+
+  generate-keys)
+    key_alias="${1:-test_key_1}"
+    cd "${ansible_dir}"
+    op run --env-file=.env.op -- bash -c '
+      set -euo pipefail
+      echo "Generating Virtual Key: '"${key_alias}"'" >&2
+      curl -s -X POST "http://127.0.0.1:4000/key/generate" \
+        -H "Authorization: Bearer ${LLM_MASTER_KEY}" \
+        -H "Content-Type: application/json" \
+        -d "{\"key_alias\": \"'"${key_alias}"'\"}" | jq .
     '
     ;;
 

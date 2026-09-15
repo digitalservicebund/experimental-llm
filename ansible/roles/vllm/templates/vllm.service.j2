@@ -10,16 +10,17 @@ RestartSec=10
 EnvironmentFile=/etc/vllm.env
 User={{ llm_service_user }}
 Environment=PATH={{ llm_virtualenv }}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
-# API key comes from VLLM_API_KEY in the EnvironmentFile so it stays out of the process table.
 ExecStart={{ llm_virtualenv }}/bin/vllm serve ${MODEL} \
   --host {{ llm_api_host }} \
   --port {{ llm_host_port }} \
   --max-model-len {{ llm_max_model_len }} \
   --tensor-parallel-size {{ llm_tensor_parallel_size }} \
   --gpu-memory-utilization {{ llm_gpu_memory_utilization }} \
-  --hf-overrides '{"rope_scaling":{"rope_type":"yarn","factor":4.0,"original_max_position_embeddings":32768}}' \
+  --chat-template {{ vllm_tool_parser_assets_dir }}/tool_chat_template_qwen2_5_coder.jinja \
   --enable-auto-tool-choice \
-  --tool-call-parser hermes
+  --tool-parser-plugin {{ vllm_tool_parser_assets_dir }}/qwen2_5_coder_tool_parser.py \
+  --tool-call-parser qwen2_5_coder \
+  --hf-overrides '{"rope_scaling":{"rope_type":"yarn","factor":4.0,"original_max_position_embeddings":32768}}'
 WorkingDirectory={{ llm_model_cache_dir }}
 LimitNOFILE=1048576
 

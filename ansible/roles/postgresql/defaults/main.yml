@@ -1,0 +1,9 @@
+# PostgreSQL configuration defaults
+postgresql_version: "18"
+postgresql_data_dir: "/var/lib/postgresql"
+postgresql_port: 5432
+
+# Database and user for LiteLLM
+postgresql_litellm_db: "litellm"
+postgresql_litellm_user: "litellm"
+# Note: postgresql_litellm_password should be set in group_vars via 1Password

@@ -144,7 +144,7 @@ Ansible Vault and HashiCorp Vault are different things. Ansible Vault is merely
 local file encryption; it is not the STACKIT service and it is not used by this
 repository.
 
-Use STACKIT Secrets Manager as the source of truth for `LLM_API_KEY` and, if
+Use STACKIT Secrets Manager as the source of truth for `LLM_MASTER_KEY` and, if
 needed, `HF_TOKEN`. STACKIT documents a Vault-compatible API and AppRole
 authentication for automated workloads. Retrieve those values just before the
 Ansible run and expose them to Ansible only as process environment variables.
@@ -155,7 +155,7 @@ approved local development secret in 1Password and use `op` to inject it for the
 duration of the command. For example:
 
 ```bash
-LLM_API_KEY='op://Work/llm-api-key/credential' \
+LLM_MASTER_KEY='op://Work/llm-master-key/credential' \
 HF_TOKEN='op://Work/huggingface-token/credential' \
 op run -- ansible-playbook playbooks/site.yml \
 	-i inventories/production/hosts.yml
@@ -164,15 +164,11 @@ op run -- ansible-playbook playbooks/site.yml \
 For the production flow, replace the direct 1Password secret references with a
 small local wrapper that authenticates to STACKIT Secrets Manager using the
 approved AppRole/API method, reads the two secret fields, exports them as
-`LLM_API_KEY` and `HF_TOKEN`, and `exec`s the same Ansible command. Keep the
+`LLM_MASTER_KEY` and `HF_TOKEN`, and `exec`s the same Ansible command. Keep the
 wrapper free of secret values; only its secret paths and non-sensitive endpoint
 configuration belong in Git. The exact STACKIT project, instance, secret paths,
 and AppRole setup are environment-specific and should be filled in from the
 STACKIT Secrets Manager configuration rather than guessed here.
-
-The API key is required because the server has a public IP. The STACKIT security
-group should still restrict port 8000 to trusted client networks, or an
-authenticated TLS reverse proxy should be used in front of it.
 
 Validate connectivity and the playbook before changing the server:
 
@@ -180,41 +176,100 @@ Validate connectivity and the playbook before changing the server:
 ansible-inventory --graph
 ansible llm_servers -i inventories/production/hosts.yml -m ping
 ansible-playbook playbooks/site.yml --syntax-check
-LLM_API_KEY='op://Work/llm-api-key/credential' \
+LLM_MASTER_KEY='op://Work/llm-master-key/credential' \
 op run -- ansible-playbook playbooks/site.yml \
 	-i inventories/production/hosts.yml --check --diff
-LLM_API_KEY='op://Work/llm-api-key/credential' \
+LLM_MASTER_KEY='op://Work/llm-master-key/credential' \
 op run -- ansible-playbook playbooks/site.yml \
 	-i inventories/production/hosts.yml
 ```
 
-The first run installs Python 3, creates `/opt/vllm/venv`, installs the pinned
-vLLM package, downloads the model on first start, and creates a systemd service.
-It does not install Ansible on the server. After deployment, test the API from
-the server:
+The first run installs Python 3, creates `/opt/vllm/venv` and `/opt/litellm/venv`,
+installs the pinned vLLM and LiteLLM packages, downloads the model on first start,
+and creates systemd services for both. It does not install Ansible on the server.
+
+### LiteLLM Proxy and Virtual Keys
+
+The deployment runs two services:
+
+1. **vLLM** on `127.0.0.1:8000` (internal only) — serves the model
+2. **LiteLLM Proxy** on `127.0.0.1:4000` (internal only) — provides authentication and metrics
+
+Clients access the LiteLLM proxy via SSH tunnel. The proxy uses **Virtual Keys** for
+authentication instead of static keys.
+
+#### Generating Virtual Keys
+
+After the Ansible playbook completes and LiteLLM is running, generate Virtual Keys
+for your MVP users. Open an SSH tunnel and use the master key to generate them:
 
 ```bash
-curl http://127.0.0.1:8000/v1/models \
-  -H 'Authorization: Bearer YOUR_API_KEY'
+# Terminal 1: Open SSH tunnel to LiteLLM
+./do tunnel
+
+# Terminal 2: Generate Virtual Keys using the master key
+MASTER_KEY='<value from 1Password LLM_MASTER_KEY>'
+
+# Generate test_key_1
+curl -X POST http://127.0.0.1:4000/key/generate \
+  -H "Authorization: Bearer $MASTER_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"key_alias": "test_key_1"}'
+
+# Generate test_key_2
+curl -X POST http://127.0.0.1:4000/key/generate \
+  -H "Authorization: Bearer $MASTER_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"key_alias": "test_key_2"}'
+
+# Generate test_key_3
+curl -X POST http://127.0.0.1:4000/key/generate \
+  -H "Authorization: Bearer $MASTER_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"key_alias": "test_key_3"}'
 ```
 
-### Checking vLLM service status and logs
+Each request returns a JSON response with the generated key. Store these keys securely.
 
-vLLM runs as the systemd service `vllm` and logs to the journal (there is no
-separate log file). From an SSH session on the server:
+#### Using Virtual Keys
+
+Your MVP users authenticate using the generated Virtual Keys against the LiteLLM proxy:
+
+```bash
+curl http://127.0.0.1:4000/v1/models \
+  -H 'Authorization: Bearer <generated_virtual_key>'
+```
+
+Virtual Keys are:
+- Stored securely in the SQLite database on the server
+- Associated with spend tracking and metrics
+- Revocable (can be deleted or disabled)
+- More secure than static keys (can be rotated without redeploying)
+
+### Checking service status and logs
+
+**vLLM** runs as the systemd service `vllm` and logs to the journal (there is no
+separate log file). **LiteLLM Proxy** runs as the systemd service `litellm`.
+From an SSH session on the server:
 
 ```bash
 systemctl status vllm
+systemctl status litellm
 ```
 
-Follow logs live, for example while the model is loading or during a request:
+Follow vLLM logs live:
 
 ```bash
 journalctl -u vllm -f
 ```
 
-Show logs since the last service (re)start, useful right after a deploy or
-restart:
+Follow LiteLLM logs live:
+
+```bash
+journalctl -u litellm -f
+```
+
+Show vLLM logs since the last service (re)start, useful right after a deploy:
 
 ```bash
 journalctl -u vllm -b --since "$(systemctl show vllm -p ActiveEnterTimestamp --value)"
@@ -224,36 +279,49 @@ Show the last N lines without following:
 
 ```bash
 journalctl -u vllm -n 200 --no-pager
+journalctl -u litellm -n 200 --no-pager
 ```
 
 Filter for errors only:
 
 ```bash
 journalctl -u vllm -p err -e
+journalctl -u litellm -p err -e
 ```
 
 ### SSH tunnel for local clients (for example opencode)
 
-Use the helper command to open a local tunnel to the remote vLLM API:
+Use the helper command to open a local tunnel to the remote LiteLLM proxy:
 
 ```bash
 ./do tunnel
 ```
 
 By default the script forwards `127.0.0.1:8000` on your workstation to
-`127.0.0.1:8000` on the server and reads `SERVER_PUBLIC_IP` from `.env.op` using
-`op run`. Optional overrides:
+`127.0.0.1:8000` on the server. This tunnel goes to vLLM, but you should instead
+point your client to the LiteLLM proxy for authentication and metrics tracking.
+
+To tunnel the LiteLLM proxy (port 4000), use:
+
+```bash
+VLLM_TUNNEL_LOCAL_PORT=4000 \
+VLLM_TUNNEL_REMOTE_PORT=4000 \
+./do tunnel
+```
+
+You can also read `SERVER_PUBLIC_IP` from `.env.op` and set custom tunnel parameters:
 
 ```bash
 VLLM_TUNNEL_LOCAL_PORT=18000 \
-VLLM_TUNNEL_REMOTE_PORT=8000 \
+VLLM_TUNNEL_REMOTE_PORT=4000 \
 VLLM_TUNNEL_REMOTE_HOST=127.0.0.1 \
 VLLM_SSH_USER=ubuntu \
 ./do tunnel
 ```
 
 Then point your OpenAI-compatible local client (including opencode) to
-`http://127.0.0.1:8000/v1` (or the local port you selected).
+`http://127.0.0.1:4000/v1` (or the local port you selected) and authenticate with
+your Virtual Key as the `Authorization: Bearer` token.
 
 Use a dedicated vLLM version and CUDA wheel combination that has been tested on
 the actual NVIDIA driver. The model is 32.5B parameters, so available VRAM and
