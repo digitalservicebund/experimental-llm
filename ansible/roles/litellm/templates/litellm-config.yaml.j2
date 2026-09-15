@@ -24,8 +24,6 @@ master_key: "{{ litellm_master_key }}"
 litellm_settings:
   log_level: "INFO"
   debug: false
-  # Don't drop parameters; let them pass to the backend
-  drop_params: false
   # Pass through HTTP error codes that should not be retried
   pass_through_error_codes: [429, 500, 502, 503, 504]
 

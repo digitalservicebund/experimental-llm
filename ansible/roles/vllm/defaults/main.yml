@@ -6,3 +6,6 @@ vllm_nvidia_driver_packages:
 
 # Reboot automatically when the driver package changes.
 vllm_nvidia_auto_reboot: true
+
+# Local destination for the vendored Qwen2.5-Coder parser assets.
+llm_tool_parser_assets_dir: /opt/vllm/tool-parser-assets
