@@ -63,3 +63,25 @@ variable "ubuntu_image_name_regex" {
   default     = "^Ubuntu 26\\.04"
 }
 
+variable "dns_name" {
+  type        = string
+  description = "DNS zone name and apex A record name for the VM."
+}
+
+variable "dns_zone_display_name" {
+  type        = string
+  description = "Human-readable STACKIT DNS zone name."
+}
+
+variable "dns_contact_email" {
+  type        = string
+  description = "Contact email for the STACKIT DNS zone."
+  default     = "platform@digitalservice.bund.de"
+}
+
+variable "dns_default_ttl" {
+  type        = number
+  description = "Default TTL for records in the STACKIT DNS zone."
+  default     = 1230
+}
+

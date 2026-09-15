@@ -10,6 +10,8 @@ locals {
   bootstrap_ssh_public_key = trimspace(var.bootstrap_ssh_public_key)
   security_group_name      = "${var.vm_name}-ssh"
   network_interface_name   = "${var.vm_name}-nic"
+  dns_zone_name            = trimsuffix(var.dns_name, ".")
+  dns_record_name          = "${local.dns_zone_name}."
 }
 
 check "bootstrap_ssh_public_key_required_when_vm_enabled" {
@@ -129,4 +131,22 @@ resource "stackit_server" "vm" {
 resource "stackit_public_ip" "server" {
   project_id           = var.project_id
   network_interface_id = stackit_network_interface.server.network_interface_id
+}
+
+resource "stackit_dns_zone" "vm" {
+  project_id    = var.project_id
+  name          = var.dns_zone_display_name
+  dns_name      = local.dns_zone_name
+  contact_email = var.dns_contact_email
+  type          = "primary"
+  description   = "Zone for ${var.vm_name}"
+  default_ttl   = var.dns_default_ttl
+}
+
+resource "stackit_dns_record_set" "vm" {
+  project_id = var.project_id
+  zone_id    = stackit_dns_zone.vm.zone_id
+  name       = local.dns_record_name
+  type       = "A"
+  records    = [stackit_public_ip.server.ip]
 }

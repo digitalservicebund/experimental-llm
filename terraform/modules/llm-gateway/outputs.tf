@@ -17,3 +17,13 @@ output "boot_volume_id" {
   description = "Persistent boot volume ID."
   value       = stackit_volume.boot.volume_id
 }
+
+output "dns_name" {
+  description = "DNS name pointing to the VM public IP."
+  value       = trimsuffix(stackit_dns_record_set.vm.name, ".")
+}
+
+output "dns_zone_id" {
+  description = "STACKIT DNS zone ID."
+  value       = stackit_dns_zone.vm.zone_id
+}

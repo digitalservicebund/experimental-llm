@@ -12,4 +12,8 @@ module "llm_gateway" {
   boot_volume_size_gb           = var.boot_volume_size_gb
   boot_volume_performance_class = var.boot_volume_performance_class
   ubuntu_image_name_regex       = var.ubuntu_image_name_regex
+  dns_name                      = var.dns_name
+  dns_zone_display_name         = var.dns_zone_display_name
+  dns_contact_email             = var.dns_contact_email
+  dns_default_ttl               = var.dns_default_ttl
 }
