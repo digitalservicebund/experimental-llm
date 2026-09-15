@@ -55,6 +55,16 @@ variable "permissions" {
   type        = list(string)
   description = "Least-privilege permissions for the generated custom role used by this repository's Terraform workflow. Covers the current llm-gateway module in both non-prod and prod."
   default = [
+    "dns.zone.create",
+    "dns.zone.delete",
+    "dns.zone.get",
+    "dns.zone.list",
+    "dns.zone.rrset.create",
+    "dns.zone.rrset.delete",
+    "dns.zone.rrset.get",
+    "dns.zone.rrset.list",
+    "dns.zone.rrset.update",
+    "dns.zone.update",
     "iaas.image.get",
     "iaas.image.list",
     "iaas.machine-type.get",
