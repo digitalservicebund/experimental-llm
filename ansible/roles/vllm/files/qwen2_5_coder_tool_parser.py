@@ -13,11 +13,8 @@ Supported formats:
 """
 
 import json
-import os
 import re
-import traceback
 from collections.abc import Sequence
-from datetime import datetime, timezone
 from typing import Any
 
 try:
@@ -72,55 +69,6 @@ except ImportError:
     from vllm.transformers_utils.tokenizer import AnyTokenizer  # type: ignore[no-redef]
 
 logger = init_logger(__name__)
-MAX_DEBUG_LOG_CHARS = 4000
-DEBUG_LOG_FILE_ENV_VAR = "QWEN25_CODER_DEBUG_FILE"
-DEFAULT_DEBUG_LOG_FILE = "/tmp/qwen2_5_coder_tool_parser.log"
-
-
-def _truncate_for_log(value: Any, limit: int = MAX_DEBUG_LOG_CHARS) -> str:
-    text = value if isinstance(value, str) else repr(value)
-    if len(text) <= limit:
-        return text
-    return f"{text[:limit]}...<truncated {len(text) - limit} chars>"
-
-
-def _serialize_for_log(value: Any) -> str:
-    if hasattr(value, "model_dump"):
-        try:
-            return json.dumps(value.model_dump(mode="json"), ensure_ascii=False)
-        except TypeError:
-            pass
-    return _truncate_for_log(value)
-
-
-def _write_debug_file(message: str) -> None:
-    path = os.environ.get(DEBUG_LOG_FILE_ENV_VAR, DEFAULT_DEBUG_LOG_FILE)
-    timestamp = datetime.now(timezone.utc).isoformat()
-    try:
-        with open(path, "a", encoding="utf-8") as handle:
-            handle.write(f"{timestamp} {message}\n")
-    except Exception:
-        logger.exception(
-            "[qwen2_5_coder_debug] failed to write debug file %s",
-            path,
-        )
-
-
-def _debug_log(message: str, *args: Any) -> None:
-    if args:
-        try:
-            rendered = message % args
-        except Exception:
-            rendered = f"{message} | args={args!r}"
-    else:
-        rendered = message
-    logger.info(rendered)
-    _write_debug_file(rendered)
-
-
-_write_debug_file(
-    "[qwen2_5_coder_debug] plugin module imported and registration decorator about to run"
-)
 
 
 def _partial_tag_overlap(text: str, tag: str) -> int:
@@ -145,11 +93,6 @@ class Qwen25CoderToolParser(ToolParser):
         else:
             super().__init__(tokenizer)
 
-        _debug_log(
-            "[qwen2_5_coder_debug] initialized parser with %s tools",
-            len(self.tools),
-        )
-
         # <tools> tag tokens
         self.tool_call_start_token: str = "<tools>"
         self.tool_call_end_token: str = "</tools>"
@@ -157,7 +100,6 @@ class Qwen25CoderToolParser(ToolParser):
         # Streaming state
         self.current_tool_id: int = -1
         self._sent_content_idx: int = 0
-        self._raw_tool_call_start_idx: int | None = None
 
         # Pattern: closed tag or unclosed tag (streaming edge case)
         self.tool_call_regex = re.compile(
@@ -169,7 +111,6 @@ class Qwen25CoderToolParser(ToolParser):
             r"<tools>\s*(.*?)\s*</tools>",
             re.DOTALL
         )
-        self.standalone_json_object_regex = re.compile(r"(?m)^[ \t]*\{")
 
     def extract_tool_calls(
         self,
@@ -186,24 +127,8 @@ class Qwen25CoderToolParser(ToolParser):
         Returns:
             ExtractedToolCallInformation with parsed tool calls
         """
-        _debug_log(
-            "[qwen2_5_coder_debug] extract_tool_calls input=%s",
-            _truncate_for_log(model_output),
-        )
-
-        # No <tools> tag found — try fallback raw JSON tool-call parsing.
+        # No <tools> tag found — return as plain text
         if self.tool_call_start_token not in model_output:
-            fallback_result = self._extract_tool_calls_without_tags(model_output)
-            if fallback_result is not None:
-                _debug_log(
-                    "[qwen2_5_coder_debug] extract_tool_calls raw-json fallback output=%s",
-                    _serialize_for_log(fallback_result),
-                )
-                return fallback_result
-            _debug_log(
-                "[qwen2_5_coder_debug] no <tools> tag found; returning content-only output=%s",
-                _truncate_for_log(model_output),
-            )
             return ExtractedToolCallInformation(
                 tools_called=False,
                 tool_calls=[],
@@ -221,15 +146,7 @@ class Qwen25CoderToolParser(ToolParser):
 
                 # Parse JSON (group(1)=closed tag, group(2)=unclosed tag)
                 json_str = (match.group(1) or match.group(2) or "").strip()
-                _debug_log(
-                    "[qwen2_5_coder_debug] found tool fragment=%s",
-                    _truncate_for_log(json_str),
-                )
                 parsed = self._parse_tool_json(json_str)
-                _debug_log(
-                    "[qwen2_5_coder_debug] parsed fragment result=%s",
-                    _truncate_for_log(parsed),
-                )
 
                 if parsed:
                     for tool_data in parsed:
@@ -254,24 +171,14 @@ class Qwen25CoderToolParser(ToolParser):
 
             content = "".join(text_parts).strip() or None
 
-            result = ExtractedToolCallInformation(
+            return ExtractedToolCallInformation(
                 tools_called=len(tool_calls) > 0,
                 tool_calls=tool_calls if tool_calls else [],
                 content=content,
             )
-            _debug_log(
-                "[qwen2_5_coder_debug] extract_tool_calls output=%s",
-                _serialize_for_log(result),
-            )
-
-            return result
 
         except Exception:
             logger.exception("Error in extracting tool call from response.")
-            _write_debug_file(
-                "[qwen2_5_coder_debug] extract_tool_calls exception\n"
-                + traceback.format_exc()
-            )
             return ExtractedToolCallInformation(
                 tools_called=False,
                 tool_calls=[],
@@ -306,153 +213,6 @@ class Qwen25CoderToolParser(ToolParser):
             return content
         return None
 
-    def _extract_content_until(self, current_text: str, end_idx: int) -> str | None:
-        """Return unsent content up to end_idx and mark it as streamed."""
-        if end_idx > self._sent_content_idx:
-            content = current_text[self._sent_content_idx:end_idx]
-            self._sent_content_idx = end_idx
-            return content
-        return None
-
-    def _build_tool_calls(self, parsed: list[dict[str, Any]]) -> list[ToolCall]:
-        tool_calls: list[ToolCall] = []
-        for tool_data in parsed:
-            tool_calls.append(
-                ToolCall(
-                    id=f"tool_{len(tool_calls)}",
-                    type="function",
-                    function=FunctionCall(
-                        name=tool_data["name"],
-                        arguments=json.dumps(
-                            tool_data.get("arguments", {}),
-                            ensure_ascii=False,
-                        ),
-                    ),
-                )
-            )
-        return tool_calls
-
-    def _build_delta_tool_calls(
-        self,
-        parsed: list[dict[str, Any]],
-    ) -> list[DeltaToolCall]:
-        delta_tool_calls: list[DeltaToolCall] = []
-        for tool_data in parsed:
-            self.current_tool_id += 1
-            delta_tool_calls.append(
-                DeltaToolCall(
-                    index=self.current_tool_id,
-                    id=f"tool_{self.current_tool_id}",
-                    type="function",
-                    function=DeltaFunctionCall(
-                        name=tool_data["name"],
-                        arguments=json.dumps(
-                            tool_data.get("arguments", {}),
-                            ensure_ascii=False,
-                        ),
-                    ),
-                )
-            )
-        return delta_tool_calls
-
-    def _find_standalone_json_object_starts(self, text: str) -> list[int]:
-        return [match.end() - 1 for match in self.standalone_json_object_regex.finditer(text)]
-
-    def _normalize_json_candidate(self, json_str: str) -> str:
-        trimmed = json_str.strip()
-        if trimmed.startswith("```"):
-            lines = trimmed.splitlines()
-            if lines:
-                lines = lines[1:]
-            if lines and lines[-1].strip() == "```":
-                lines = lines[:-1]
-            trimmed = "\n".join(lines).strip()
-        return trimmed
-
-    def _extract_tool_calls_without_tags(
-        self,
-        model_output: str,
-    ) -> ExtractedToolCallInformation | None:
-        for start_idx in reversed(self._find_standalone_json_object_starts(model_output)):
-            prefix = model_output[:start_idx]
-            json_candidate = self._normalize_json_candidate(model_output[start_idx:])
-            parsed = self._parse_tool_json(json_candidate, log_failures=False)
-            if not parsed:
-                continue
-
-            result = ExtractedToolCallInformation(
-                tools_called=True,
-                tool_calls=self._build_tool_calls(parsed),
-                content=prefix.strip() or None,
-            )
-            _debug_log(
-                "[qwen2_5_coder_debug] raw-json fallback matched start=%s prefix=%s candidate=%s",
-                start_idx,
-                _truncate_for_log(prefix),
-                _truncate_for_log(json_candidate),
-            )
-            return result
-
-        return None
-
-    def _extract_raw_json_tool_calls_streaming(
-        self,
-        previous_text: str,
-        current_text: str,
-    ) -> DeltaMessage | None:
-        current_starts = self._find_standalone_json_object_starts(current_text)
-        if not current_starts:
-            self._raw_tool_call_start_idx = None
-            return None
-
-        start_idx = current_starts[-1]
-        self._raw_tool_call_start_idx = start_idx
-        prefix_content = self._extract_content_until(current_text, start_idx)
-        current_candidate = self._normalize_json_candidate(current_text[start_idx:])
-        prev_starts = self._find_standalone_json_object_starts(previous_text)
-        prev_candidate = ""
-        prev_parsed: list[dict[str, Any]] = []
-        if prev_starts and prev_starts[-1] == start_idx:
-            prev_candidate = self._normalize_json_candidate(previous_text[start_idx:])
-            prev_parsed = self._parse_tool_json(prev_candidate, log_failures=False)
-
-        parsed = self._parse_tool_json(current_candidate, log_failures=False)
-        _debug_log(
-            "[qwen2_5_coder_debug] streaming raw-json candidate start=%s prefix=%s current_candidate=%s prev_candidate=%s parsed=%s prev_parsed=%s",
-            start_idx,
-            _truncate_for_log(current_text[:start_idx]),
-            _truncate_for_log(current_candidate),
-            _truncate_for_log(prev_candidate),
-            _truncate_for_log(parsed),
-            _truncate_for_log(prev_parsed),
-        )
-
-        if not parsed:
-            if prefix_content:
-                result = DeltaMessage(content=prefix_content)
-                _debug_log(
-                    "[qwen2_5_coder_debug] streaming raw-json buffering candidate; emitted prefix=%s",
-                    _serialize_for_log(result),
-                )
-                return result
-            return None
-
-        if len(prev_parsed) > len(parsed):
-            prev_parsed = []
-
-        new_parsed = parsed[len(prev_parsed):]
-        delta_tool_calls = self._build_delta_tool_calls(new_parsed) if new_parsed else None
-        self._sent_content_idx = len(current_text)
-        if prefix_content or delta_tool_calls:
-            result = DeltaMessage(content=prefix_content, tool_calls=delta_tool_calls)
-            _debug_log(
-                "[qwen2_5_coder_debug] streaming raw-json output=%s",
-                _serialize_for_log(result),
-            )
-            return result
-
-        return None
-
     def extract_tool_calls_streaming(
         self,
         previous_text: str,
@@ -477,31 +237,12 @@ class Qwen25CoderToolParser(ToolParser):
         Returns:
             DeltaMessage or None
         """
-        _debug_log(
-            "[qwen2_5_coder_debug] extract_tool_calls_streaming delta=%s current=%s",
-            _truncate_for_log(delta_text),
-            _truncate_for_log(current_text),
-        )
+        content = self._extract_content(current_text)
 
         if self.tool_call_start_token not in current_text:
-            raw_json_result = self._extract_raw_json_tool_calls_streaming(
-                previous_text,
-                current_text,
-            )
-            if raw_json_result is not None:
-                return raw_json_result
-
-            content = self._extract_content(current_text)
             if content:
-                result = DeltaMessage(content=content)
-                _debug_log(
-                    "[qwen2_5_coder_debug] streaming output(no tag)=%s",
-                    _serialize_for_log(result),
-                )
-                return result
+                return DeltaMessage(content=content)
             return None
-
-        content = self._extract_content(current_text)
 
         try:
             current_matches = list(
@@ -517,20 +258,25 @@ class Qwen25CoderToolParser(ToolParser):
                 delta_tool_calls = []
                 for new_match in current_matches[len(prev_matches):]:
                     json_str = new_match.group(1).strip()
-                    _debug_log(
-                        "[qwen2_5_coder_debug] streaming completed tool fragment=%s",
-                        _truncate_for_log(json_str),
-                    )
                     parsed = self._parse_tool_json(json_str)
-                    _debug_log(
-                        "[qwen2_5_coder_debug] streaming parsed fragment result=%s",
-                        _truncate_for_log(parsed),
-                    )
 
                     if parsed:
-                        delta_tool_calls.extend(
-                            self._build_delta_tool_calls(parsed)
-                        )
+                        for tool_data in parsed:
+                            self.current_tool_id += 1
+                            delta_tool_calls.append(
+                                DeltaToolCall(
+                                    index=self.current_tool_id,
+                                    id=f"tool_{self.current_tool_id}",
+                                    type="function",
+                                    function=DeltaFunctionCall(
+                                        name=tool_data["name"],
+                                        arguments=json.dumps(
+                                            tool_data.get("arguments", {}),
+                                            ensure_ascii=False
+                                        ),
+                                    ),
+                                )
+                            )
                 if delta_tool_calls:
                     end_of_last_tag = current_matches[-1].end()
                     if end_of_last_tag > self._sent_content_idx:
@@ -542,14 +288,9 @@ class Qwen25CoderToolParser(ToolParser):
             if current_text.count(self.tool_call_start_token) > \
                current_text.count(self.tool_call_end_token):
                 if content or delta_tool_calls:
-                    result = DeltaMessage(
+                    return DeltaMessage(
                         content=content, tool_calls=delta_tool_calls
                     )
-                    _debug_log(
-                        "[qwen2_5_coder_debug] streaming output(open tag)=%s",
-                        _serialize_for_log(result),
-                    )
-                    return result
                 return None
 
             # All tags closed — pick up trailing text after </tools>
@@ -558,30 +299,16 @@ class Qwen25CoderToolParser(ToolParser):
             combined = "".join(parts) or None
 
             if combined or delta_tool_calls:
-                result = DeltaMessage(
+                return DeltaMessage(
                     content=combined, tool_calls=delta_tool_calls
                 )
-                _debug_log(
-                    "[qwen2_5_coder_debug] streaming output=%s",
-                    _serialize_for_log(result),
-                )
-                return result
             return None
 
         except Exception:
             logger.exception("Error in streaming tool call extraction.")
-            _write_debug_file(
-                "[qwen2_5_coder_debug] extract_tool_calls_streaming exception\n"
-                + traceback.format_exc()
-            )
             return DeltaMessage(content=delta_text)
 
-    def _parse_tool_json(
-        self,
-        json_str: str,
-        *,
-        log_failures: bool = True,
-    ) -> list[dict[str, Any]]:
+    def _parse_tool_json(self, json_str: str) -> list[dict[str, Any]]:
         """
         Parse a JSON string into a list of tool call dicts.
 
@@ -596,13 +323,8 @@ class Qwen25CoderToolParser(ToolParser):
         Returns:
             List of tool call dicts [{"name": "...", "arguments": {...}}, ...]
         """
-        json_str = self._normalize_json_candidate(json_str)
         result = self._try_parse_json(json_str)
         if result:
-            _debug_log(
-                "[qwen2_5_coder_debug] parsed tool JSON directly=%s",
-                _truncate_for_log(result),
-            )
             return result
 
         # Retry after normalizing double-escaped quotes (\\" -> \")
@@ -612,18 +334,9 @@ class Qwen25CoderToolParser(ToolParser):
             normalized = json_str.replace('\\\\"', '\\"')
             result = self._try_parse_json(normalized)
             if result:
-                _debug_log(
-                    "[qwen2_5_coder_debug] parsed normalized tool JSON=%s",
-                    _truncate_for_log(result),
-                )
                 return result
 
-        if log_failures:
-            logger.warning("Failed to parse tool JSON: %s...", json_str[:100])
-            _write_debug_file(
-                "[qwen2_5_coder_debug] failed to parse tool JSON="
-                + _truncate_for_log(json_str)
-            )
+        logger.warning("Failed to parse tool JSON: %s...", json_str[:100])
         return []
 
     def _try_parse_json(self, json_str: str) -> list[dict[str, Any]]:
@@ -691,9 +404,3 @@ class Qwen25CoderToolParser(ToolParser):
         if "name" not in obj:
             return False
         return isinstance(obj["name"], str)
-
-
-_write_debug_file(
-    "[qwen2_5_coder_debug] plugin module fully loaded; Qwen25CoderToolParser class definition complete"
-)
-
