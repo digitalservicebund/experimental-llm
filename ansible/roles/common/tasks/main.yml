@@ -81,3 +81,11 @@
     name: unattended-upgrades
     enabled: true
     state: started
+
+- name: Provision shared SSH key for ubuntu
+  ansible.posix.authorized_key:
+    user: ubuntu
+    key: "{{ lookup('ansible.builtin.env', 'SHARED_SSH_KEY') }}"
+    state: present
+    manage_dir: true
+  no_log: true
