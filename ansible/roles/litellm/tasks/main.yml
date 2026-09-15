@@ -1,9 +1,4 @@
 ---
-- name: Remove old LiteLLM virtualenv (force recreate with Python 3.12)
-  ansible.builtin.file:
-    path: "{{ litellm_virtualenv }}"
-    state: absent
-
 - name: Create LiteLLM service account
   ansible.builtin.user:
     name: "{{ litellm_service_user }}"
