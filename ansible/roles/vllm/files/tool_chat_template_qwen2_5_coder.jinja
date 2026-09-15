@@ -7,7 +7,7 @@
 {%- endif %}
 
 {{- "<|im_start|>system\n" + system_message }}
-{%- if tools is iterable and tools | length > 0 %}
+{%- if tools is defined and tools is iterable and tools | length > 0 %}
     {{- "\n\nAvailable tools:\n" }}
     {%- for tool in tools %}
         {%- if tool.function is defined %}

@@ -105,6 +105,14 @@
     group: "{{ llm_service_user }}"
     mode: "0750"
 
+- name: Ensure vLLM tool parser assets directory exists
+  ansible.builtin.file:
+    path: "{{ llm_tool_parser_assets_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
 - name: Find cached model repositories
   ansible.builtin.find:
     paths: "{{ llm_model_cache_dir }}/hub"
@@ -141,22 +149,12 @@
   ansible.builtin.template:
     src: vllm.env.j2
     dest: /etc/vllm.env
-    owner: root
-    group: root
     mode: "0600"
   notify: Restart vLLM
 
-- name: Ensure vLLM tool parser assets directory exists
-  ansible.builtin.file:
-    path: "{{ llm_tool_parser_assets_dir }}"
-    state: directory
-    owner: root
-    group: root
-    mode: "0755"
-
 - name: Copy local Qwen2.5-Coder tool parser plugin
   ansible.builtin.copy:
-    content: "{{ lookup('ansible.builtin.file', playbook_dir ~ '/../roles/litellm/files/qwen2_5_coder_tool_parser.py') }}"
+    src: qwen2_5_coder_tool_parser.py
     dest: "{{ llm_tool_parser_assets_dir }}/qwen2_5_coder_tool_parser.py"
     owner: root
     group: root
@@ -165,7 +163,7 @@
 
 - name: Copy local Qwen2.5-Coder chat template
   ansible.builtin.copy:
-    content: "{{ lookup('ansible.builtin.file', playbook_dir ~ '/../roles/litellm/files/tool_chat_template_qwen2_5_coder.jinja') }}"
+    src: tool_chat_template_qwen2_5_coder.jinja
     dest: "{{ llm_tool_parser_assets_dir }}/tool_chat_template_qwen2_5_coder.jinja"
     owner: root
     group: root
@@ -176,9 +174,6 @@
   ansible.builtin.template:
     src: vllm.service.j2
     dest: /etc/systemd/system/vllm.service
-    owner: root
-    group: root
-    mode: "0644"
   notify:
     - Reload systemd
     - Restart vLLM
