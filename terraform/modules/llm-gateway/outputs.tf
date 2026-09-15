@@ -1,6 +1,6 @@
 output "public_ip" {
   description = "Public IPv4 address assigned to the VM, if enabled."
-  value       = try(stackit_public_ip.server[0].ip, null)
+  value       = try(stackit_public_ip.server.ip, null)
 }
 
 output "server_id" {
@@ -10,7 +10,7 @@ output "server_id" {
 
 output "network_interface_id" {
   description = "STACKIT network interface ID when the VM is enabled."
-  value       = try(stackit_network_interface.server[0].network_interface_id, null)
+  value       = try(stackit_network_interface.server.network_interface_id, null)
 }
 
 output "boot_volume_id" {

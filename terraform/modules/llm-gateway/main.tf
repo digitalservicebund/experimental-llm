@@ -100,7 +100,6 @@ resource "stackit_security_group_rule" "ssh_ipv6" {
 }
 
 resource "stackit_network_interface" "server" {
-  count      = var.vm_enabled ? 1 : 0
   project_id = var.project_id
   network_id = data.stackit_network.existing[0].network_id
   name       = local.network_interface_name
@@ -120,7 +119,7 @@ resource "stackit_server" "vm" {
     source_id   = stackit_volume.boot.volume_id
   }
 
-  network_interfaces = [stackit_network_interface.server[0].network_interface_id]
+  network_interfaces = [stackit_network_interface.server.network_interface_id]
   user_data = templatefile("${path.module}/cloud-init.yaml.tftpl", {
     hostname                 = var.vm_name
     ssh_user                 = var.bootstrap_ssh_user
@@ -129,8 +128,6 @@ resource "stackit_server" "vm" {
 }
 
 resource "stackit_public_ip" "server" {
-  count                = var.vm_enabled ? 1 : 0
   project_id           = var.project_id
-  network_interface_id = stackit_network_interface.server[0].network_interface_id
+  network_interface_id = stackit_network_interface.server.network_interface_id
 }
-
