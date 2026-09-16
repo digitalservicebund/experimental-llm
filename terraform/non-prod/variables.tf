@@ -47,7 +47,8 @@ variable "vm_name" {
 variable "vm_machine_type_name" {
   type        = string
   description = "Exact STACKIT machine type name for the GPU instance."
-  default     = "n2.14d.g1"
+  # default     = "n2.14d.g1" # 14-core CPU machine with 1 NVIDIA L40S 48GB GPU
+  default = "n1.14d.g1" # 14-core CPU machine with 1 NVIDIA A100 80GB GPU
 }
 
 variable "bootstrap_ssh_user" {
