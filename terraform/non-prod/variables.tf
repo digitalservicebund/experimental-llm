@@ -76,12 +76,6 @@ variable "boot_volume_performance_class" {
   default     = "storage_premium_perf6"
 }
 
-variable "ubuntu_image_name_regex" {
-  type        = string
-  description = "Regex used to select the Ubuntu 26.04 base image."
-  default     = "^Ubuntu 26\\.04"
-}
-
 variable "dns_name" {
   type        = string
   description = "DNS zone name and apex A record name for the non-production VM."
