@@ -3,63 +3,33 @@
 [Documentation for agents](AGENTS.md)
 
 Ansible configuration for an existing Ubuntu 26.04 NVIDIA server running a
-native Python vLLM OpenAI-compatible API with a configurable Hugging Face model.
+native Python vLLM OpenAI-compatible API with a configurable Hugging Face model,
+fronted by a LiteLLM Proxy for authentication and metrics.
 
-Terraform for this repository is executed only from GitHub Actions. The
-`terraform/` directory contains the STACKIT definitions, and the
-`.github/workflows/terraform.yml` workflow uses OIDC/workload identity
-federation.
+## Terraform
+
+There are two separate Terraform configurations with different execution models:
+
+- **`terraform/bootstrap-github-oidc/`** — one-time bootstrap that creates the
+  GitHub OIDC/workload identity federation used by the main stack. Run this
+  **locally** (see upstream guides below) and push the resulting state files
+  (`terraform.tfstate*`) to the repository afterwards, since no CI job manages
+  this state.
+- **`terraform/non-prod/`** (and any future STACKIT stack) — runs **only** from
+  GitHub Actions (`.github/workflows/terraform.yml`) via OIDC. Never apply this
+  stack locally.
 
 For bootstrap and setup details, use the upstream guides:
 
 - https://platform-docs.prod.tech.digitalservice.dev/stackit-user-docs/how-to-guides/terraform-github-actions
 - https://github.com/digitalservicebund/terraform-modules/tree/main/stackit-identity-federation
 
-Local Terraform runs can authenticate with a short-lived service account token:
+Local Terraform runs (bootstrap only) can authenticate with a short-lived
+service account token:
 
 ```bash
 export STACKIT_SERVICE_ACCOUNT_TOKEN=$(stackit auth get-access-token)
 ```
-
-## Important prerequisite
-
-`Qwen/Qwen2.5-Coder-32B-Instruct` is a 32.5B-parameter BF16 model. Confirm the
-STACKIT server has a compatible GPU and enough VRAM before applying the
-playbook. The role installs pinned Ubuntu NVIDIA server driver packages and can
-reboot automatically when the driver changes.
-
-The NVIDIA kernel driver is required. Verify it on the server with
-`nvidia-smi`. A CUDA toolkit installation is normally not required when using a
-compatible prebuilt vLLM/PyTorch wheel; the driver must still be new enough for
-the CUDA runtime selected by `vllm_torch_index`. Install or upgrade the driver
-using the STACKIT/Ubuntu GPU image documentation if `nvidia-smi` is unavailable,
-then reboot and verify it before running Ansible.
-
-### NVIDIA driver change procedure
-
-Treat the NVIDIA driver as part of the server platform, not as an ordinary
-application package. Before changing it:
-
-1. Record `nvidia-smi`, `uname -a`, `ubuntu-drivers devices`, the installed
-	packages from `dpkg -l | grep -E 'nvidia|cuda'`, and the current vLLM service
-	status.
-2. Confirm the exact GPU model, Ubuntu kernel, NVIDIA driver branch, and CUDA
-	runtime required by the selected vLLM/PyTorch version. Do not choose a driver
-	merely because it is the newest package in APT.
-3. Confirm console/SSH access, a recent server backup or rebuild path, and a
-	maintenance window. A driver change can require a reboot and can leave the
-	machine without GPU access if DKMS fails to build for the active kernel.
-4. Prefer a STACKIT image that already contains a validated driver. If installing
-	manually, use the Ubuntu/STACKIT-supported package method and install only the
-	specific driver branch selected in step 2. Do not mix NVIDIA `.run` installers
-	with distribution packages.
-5. Reboot explicitly, then verify `nvidia-smi`, `lsmod | grep nvidia`, and the
-	kernel/DKMS status before starting vLLM. Run a small inference smoke test and
-	inspect `journalctl -u vllm`.
-
-The Ansible playbook installs pinned NVIDIA server driver packages, then checks
-`nvidia-smi` and stops if the driver is still unavailable. It still does not
-install a desktop graphics stack or use NVIDIA `.run` installers.
 
 ## Workstation setup
 
@@ -85,35 +55,6 @@ ansible-lint --version
 yamllint --version
 ```
 
-The repository keeps Python control-node dependencies in
-`ansible/requirements.txt`. GitHub Actions installs that file and uses it as the
-pip cache key. The separate `ansible/requirements.yml` file contains Ansible
-Galaxy collections.
-
-`pipx ensurepath` is not a Python dependency. It updates the shell `PATH` so
-commands installed by pipx can be found, so it belongs in workstation setup
-instructions rather than in `requirements.txt`.
-
-From the repository root, use the shared `do` command runner:
-
-```bash
-./do lint
-```
-
-To trigger the remote Terraform workflow and then continue with Ansible, use:
-
-```bash
-./do apply true
-```
-
-Pass `false` to scale compute down, for example `./do apply false`. The command
-dispatches `.github/workflows/terraform.yml` through the GitHub CLI, waits for
-it to finish, and then runs the Ansible playbook.
-
-Open and unlock the 1Password desktop app, enable **Settings > Developer >
-Integrate with 1Password CLI**, and run `op vault list` once to confirm the CLI
-can authenticate through the desktop app.
-
 Install the project collections. The local
 `ansible.cfg` configures the inventory and role path:
 
@@ -121,14 +62,29 @@ Install the project collections. The local
 ansible-galaxy collection install -r requirements.yml
 ```
 
-Edit `inventories/production/hosts.yml` with the public IP and the SSH key used
-for the existing `ubuntu` login.
+The repository keeps Python control-node dependencies in
+`ansible/requirements.txt` (used as the pip cache key in CI) and Ansible Galaxy
+collections in `ansible/requirements.yml`. `pipx ensurepath` only updates the
+shell `PATH`, so it stays out of `requirements.txt`.
 
-Set a tested, pinned `vllm_version` and matching CUDA PyTorch index in
-`inventories/production/group_vars/all.yml`.
+From the repository root, use the shared `do` command runner to lint, apply Ansible, 
+and open an SSH tunnel to the server. To see available commands, run:
 
-Store the server's public IP in 1Password alongside the other secrets, then add
-its SSH host key fingerprint to `known_hosts` before running Ansible so the
+```bash
+./do
+```
+
+
+### Secrets
+
+Secrets are kept in 1Password and injected with `op`.
+
+Ask to be added to the 1Password vault.
+Open and unlock the 1Password desktop app, enable **Settings > Developer >
+Integrate with 1Password CLI**, and run `op vault list` once to confirm the CLI
+can authenticate through the desktop app.
+
+Add SSH host key fingerprint to `known_hosts` before running Ansible so the
 connection is not prompted for interactive host key verification:
 
 ```bash
@@ -138,102 +94,37 @@ op run --env-file=.env.op -- sh -c 'ssh-keyscan -H "$SERVER_PUBLIC_IP" >> ~/.ssh
 Verify the printed fingerprint against the one shown in the STACKIT console (or
 another trusted out-of-band source) before trusting it.
 
-### Secrets
-
-Ansible Vault and HashiCorp Vault are different things. Ansible Vault is merely
-local file encryption; it is not the STACKIT service and it is not used by this
-repository.
-
-Use STACKIT Secrets Manager as the source of truth for `LLM_MASTER_KEY` and, if
-needed, `HF_TOKEN`. STACKIT documents a Vault-compatible API and AppRole
-authentication for automated workloads. Retrieve those values just before the
-Ansible run and expose them to Ansible only as process environment variables.
-Do not commit a fetched secret, a token file, or a generated `.env` file.
-
-On workstations, keep the STACKIT Secret Manager AppRole credentials or an
-approved local development secret in 1Password and use `op` to inject it for the
-duration of the command. For example:
-
-```bash
-LLM_MASTER_KEY='op://Work/llm-master-key/credential' \
-HF_TOKEN='op://Work/huggingface-token/credential' \
-op run -- ansible-playbook playbooks/site.yml \
-	-i inventories/production/hosts.yml
-```
-
-For the production flow, replace the direct 1Password secret references with a
-small local wrapper that authenticates to STACKIT Secrets Manager using the
-approved AppRole/API method, reads the two secret fields, exports them as
-`LLM_MASTER_KEY` and `HF_TOKEN`, and `exec`s the same Ansible command. Keep the
-wrapper free of secret values; only its secret paths and non-sensitive endpoint
-configuration belong in Git. The exact STACKIT project, instance, secret paths,
-and AppRole setup are environment-specific and should be filled in from the
-STACKIT Secrets Manager configuration rather than guessed here.
-
-Validate connectivity and the playbook before changing the server:
-
-```bash
-ansible-inventory --graph
-ansible llm_servers -i inventories/production/hosts.yml -m ping
-ansible-playbook playbooks/site.yml --syntax-check
-LLM_MASTER_KEY='op://Work/llm-master-key/credential' \
-op run -- ansible-playbook playbooks/site.yml \
-	-i inventories/production/hosts.yml --check --diff
-LLM_MASTER_KEY='op://Work/llm-master-key/credential' \
-op run -- ansible-playbook playbooks/site.yml \
-	-i inventories/production/hosts.yml
-```
-
-The first run installs Python 3, creates `/opt/vllm/venv` and `/opt/litellm/venv`,
-installs the pinned vLLM and LiteLLM packages, downloads the model on first start,
-and creates systemd services for both. It does not install Ansible on the server.
-
 ### LiteLLM Proxy and Virtual Keys
 
-The deployment runs two services:
+The deployment runs three services:
 
 1. **vLLM** on `127.0.0.1:8000` (internal only) — serves the model
-2. **LiteLLM Proxy** on `127.0.0.1:4000` (internal only) — provides authentication and metrics
+2. **PostgreSQL** on `127.0.0.1:5432` (internal only) — stores LiteLLM Virtual
+   Keys and spend/usage metrics
+3. **LiteLLM Proxy** on `127.0.0.1:4000` (internal only) — provides
+   authentication and metrics on top of vLLM
 
-Clients access the LiteLLM proxy via SSH tunnel. The proxy uses **Virtual Keys** for
-authentication instead of static keys.
+Clients access the LiteLLM proxy via SSH tunnel. The proxy uses **Virtual Keys**
+for authentication instead of a static key.
 
 #### Generating Virtual Keys
 
-After the Ansible playbook completes and LiteLLM is running, generate Virtual Keys
-for your MVP users. Open an SSH tunnel and use the master key to generate them:
+After the Ansible playbook completes and LiteLLM is running, generate Virtual
+Keys for your users. Open an SSH tunnel and use the master key to generate them:
 
 ```bash
 # Terminal 1: Open SSH tunnel to LiteLLM
 ./do tunnel
 
-# Terminal 2: Generate Virtual Keys using the master key
-MASTER_KEY='<value from 1Password LLM_MASTER_KEY>'
-
-# Generate test_key_1
-curl -X POST http://127.0.0.1:4000/key/generate \
-  -H "Authorization: Bearer $MASTER_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"key_alias": "test_key_1"}'
-
-# Generate test_key_2
-curl -X POST http://127.0.0.1:4000/key/generate \
-  -H "Authorization: Bearer $MASTER_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"key_alias": "test_key_2"}'
-
-# Generate test_key_3
-curl -X POST http://127.0.0.1:4000/key/generate \
-  -H "Authorization: Bearer $MASTER_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"key_alias": "test_key_3"}'
+# Terminal 2: Generate a Virtual Key using the master key and ./do
+./do generate-keys my_key_alias
 ```
 
 Each request returns a JSON response with the generated key. Store these keys securely.
 
 #### Using Virtual Keys
 
-Your MVP users authenticate using the generated Virtual Keys against the LiteLLM proxy:
+Users authenticate using the generated Virtual Keys against the LiteLLM proxy:
 
 ```bash
 curl http://127.0.0.1:4000/v1/models \
@@ -241,67 +132,29 @@ curl http://127.0.0.1:4000/v1/models \
 ```
 
 Virtual Keys are:
-- Stored securely in the SQLite database on the server
-- Associated with spend tracking and metrics
+- Stored in PostgreSQL on the server, alongside spend/usage metrics
 - Revocable (can be deleted or disabled)
 - More secure than static keys (can be rotated without redeploying)
 
 ### Checking service status and logs
 
-**vLLM** runs as the systemd service `vllm` and logs to the journal (there is no
-separate log file). **LiteLLM Proxy** runs as the systemd service `litellm`.
-From an SSH session on the server:
+**vLLM** (`vllm`), **PostgreSQL** (`postgresql`), and **LiteLLM Proxy**
+(`litellm`) each run as systemd services. vLLM and LiteLLM log only to the
+journal. From an SSH session on the server:
 
 ```bash
-systemctl status vllm
-systemctl status litellm
-```
+systemctl status vllm postgresql litellm
 
-Follow vLLM logs live:
-
-```bash
-journalctl -u vllm -f
-```
-
-Follow LiteLLM logs live:
-
-```bash
-journalctl -u litellm -f
-```
-
-Show vLLM logs since the last service (re)start, useful right after a deploy:
-
-```bash
-journalctl -u vllm -b --since "$(systemctl show vllm -p ActiveEnterTimestamp --value)"
-```
-
-Show the last N lines without following:
-
-```bash
-journalctl -u vllm -n 200 --no-pager
-journalctl -u litellm -n 200 --no-pager
-```
-
-Filter for errors only:
-
-```bash
-journalctl -u vllm -p err -e
-journalctl -u litellm -p err -e
+journalctl -u vllm -f                 # follow live
+journalctl -u vllm -n 200 --no-pager  # last N lines
+journalctl -u vllm -p err -e          # errors only
 ```
 
 ### SSH tunnel for local clients (for example opencode)
 
-Use the helper command to open a local tunnel to the remote LiteLLM proxy:
-
-```bash
-./do tunnel
-```
-
-By default the script forwards `127.0.0.1:8000` on your workstation to
-`127.0.0.1:8000` on the server. This tunnel goes to vLLM, but you should instead
-point your client to the LiteLLM proxy for authentication and metrics tracking.
-
-To tunnel the LiteLLM proxy (port 4000), use:
+`./do tunnel` opens a local tunnel to the server; by default it forwards
+`127.0.0.1:8000` (vLLM). Point your client at the LiteLLM proxy instead for
+authentication and metrics tracking by tunneling port 4000:
 
 ```bash
 VLLM_TUNNEL_LOCAL_PORT=4000 \
@@ -309,42 +162,9 @@ VLLM_TUNNEL_REMOTE_PORT=4000 \
 ./do tunnel
 ```
 
-You can also read `SERVER_PUBLIC_IP` from `.env.op` and set custom tunnel parameters:
-
-```bash
-VLLM_TUNNEL_LOCAL_PORT=18000 \
-VLLM_TUNNEL_REMOTE_PORT=4000 \
-VLLM_TUNNEL_REMOTE_HOST=127.0.0.1 \
-VLLM_SSH_USER=ubuntu \
-./do tunnel
-```
-
-Then point your OpenAI-compatible local client (including opencode) to
-`http://127.0.0.1:4000/v1` (or the local port you selected) and authenticate with
-your Virtual Key as the `Authorization: Bearer` token.
-
-Use a dedicated vLLM version and CUDA wheel combination that has been tested on
-the actual NVIDIA driver. The model is 32.5B parameters, so available VRAM and
-the selected context length are operational constraints; a single GPU may need
-quantization or tensor parallelism across multiple GPUs.
-
-## GitHub Actions validation
-
-The repository includes [ansible-validate.yml](.github/workflows/ansible-validate.yml).
-There is nothing to install locally for this workflow. Push the repository to
-GitHub with the workflow committed, then GitHub Actions will automatically run
-the YAML, syntax, inventory, task-listing, and Ansible Lint checks on pushes to
-`main` and on pull requests that change `ansible/**`.
-
-The workflow does not have server credentials and never runs a normal playbook
-against a host. It only uses `--syntax-check`, `--list-hosts`, and
-`--list-tasks`, which do not connect to managed servers.
-
-GitHub Actions and local development both execute `./do lint`. The command
-installs the declared Ansible collections, validates YAML, checks playbook
-syntax, resolves the inventory, lists hosts and tasks, and runs Ansible Lint.
-All of these checks are non-connecting; they never apply the playbook to a
-server.
+Then point your OpenAI-compatible client (including opencode) at
+`http://127.0.0.1:4000/v1` and authenticate with your Virtual Key as the
+`Authorization: Bearer` token.
 
 ## Upstream references
 
@@ -352,4 +172,3 @@ server.
 - [vLLM GPU installation](https://docs.vllm.ai/en/stable/getting_started/installation/gpu/)
 - [Qwen2.5-Coder-32B-Instruct model card](https://huggingface.co/Qwen/Qwen2.5-Coder-32B-Instruct)
 - [STACKIT documentation](https://docs.stackit.cloud/)
-- [STACKIT Secrets Manager AppRole](https://docs.stackit.cloud/products/security/secrets-manager/how-tos/configure-and-use-approles/)
