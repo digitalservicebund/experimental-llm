@@ -13,9 +13,9 @@ Commands:
   apply [tags]     Run Ansible apply. Optional: specify tags to limit tasks.
                    Common tags: common, postgresql, vllm, litellm
                    Example: ./do apply litellm
-  ping [args...]   Ping hosts in llm_servers.
-  login [args...]  SSH into the server from 1Password.
-  tunnel           Open SSH tunnel to remote vLLM API.
+  ping [args...]   Ping host (with args passed to ansible).
+  login [args...]  SSH into the server (with args passed to ssh).
+  tunnel           Open SSH tunnel to remote LiteLLM API.
   generate-keys    Generate Virtual Keys for LiteLLM proxy authentication.
   help             Show this help text.
 EOF
@@ -66,8 +66,8 @@ case "${command}" in
     ;;
 
   tunnel)
-    local_port="${VLLM_TUNNEL_LOCAL_PORT:-8000}"
-    remote_port="${VLLM_TUNNEL_REMOTE_PORT:-8000}"
+    local_port="${VLLM_TUNNEL_LOCAL_PORT:-4000}"
+    remote_port="${VLLM_TUNNEL_REMOTE_PORT:-4000}"
     remote_host="${VLLM_TUNNEL_REMOTE_HOST:-127.0.0.1}"
     ssh_user="${VLLM_SSH_USER:-ubuntu}"
 
@@ -112,4 +112,3 @@ case "${command}" in
     exit 1
     ;;
 esac
-

@@ -153,12 +153,11 @@ journalctl -u vllm -p err -e          # errors only
 ### SSH tunnel for local clients (for example opencode)
 
 `./do tunnel` opens a local tunnel to the server; by default it forwards
-`127.0.0.1:8000` (vLLM). Point your client at the LiteLLM proxy instead for
-authentication and metrics tracking by tunneling port 4000:
+`127.0.0.1:4000` (LiteLLM proxy). Customize the local and remote ports with environment variables:
 
 ```bash
-VLLM_TUNNEL_LOCAL_PORT=4000 \
-VLLM_TUNNEL_REMOTE_PORT=4000 \
+VLLM_TUNNEL_LOCAL_PORT=8000 \
+VLLM_TUNNEL_REMOTE_PORT=8000 \
 ./do tunnel
 ```
 
