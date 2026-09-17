@@ -2,12 +2,13 @@ name: Scale Up
 
 on:
   workflow_dispatch:
-  schedule:
-    # GitHub Actions schedules are UTC.
-    # 08:00 CEST (summer)
-    - cron: "58 5 * 4-10 1-5"
-    # 08:00 CET (winter)
-    - cron: "58 6 * 1-3,11-12 1-5"
+#  No scheduled scale as long as this project is on hold.
+#  schedule:
+#    # GitHub Actions schedules are UTC.
+#    # 08:00 CEST (summer)
+#    - cron: "58 5 * 4-10 1-5"
+#    # 08:00 CET (winter)
+#    - cron: "58 6 * 1-3,11-12 1-5"
 
 permissions:
   contents: read
