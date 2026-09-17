@@ -13,9 +13,3 @@ output "expected_oidc_subjects" {
     for subject in var.github_subjects : "repo:${local.normalized_github_repository}:${subject}"
   ]
 }
-
-output "configured_workflow_assertions" {
-  description = "Additional OIDC assertions configured for every federated identity provider."
-  value       = var.additional_assertions
-}
-

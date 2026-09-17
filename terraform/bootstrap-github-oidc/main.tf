@@ -22,7 +22,6 @@ module "github_actions_identity_federation" {
 
   github_repository     = var.github_repository
   github_subjects       = var.github_subjects
-  additional_assertions = var.additional_assertions
 
   roles       = var.roles
   permissions = var.permissions
