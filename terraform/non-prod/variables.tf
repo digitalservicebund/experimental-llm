@@ -7,6 +7,7 @@ variable "region" {
 variable "project_id" {
   type        = string
   description = "STACKIT project ID that owns the non-production resources."
+  default     = "8f43ea04-9012-4cd7-8d14-d4e202c9ddc0"
 }
 
 variable "backend_access_key_id" {
@@ -24,6 +25,7 @@ variable "backend_secret_access_key" {
 variable "existing_network_id" {
   type        = string
   description = "ID of the existing STACKIT network named llm."
+  default     = "7cdd4ee0-cb53-40b7-b8e8-50a324c261f8"
 }
 
 variable "availability_zone" {

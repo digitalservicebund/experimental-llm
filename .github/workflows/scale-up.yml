@@ -19,9 +19,6 @@ jobs:
     name: Create VM via Terraform apply
     uses: ./.github/workflows/terraform-apply.yml
     with:
-      project_id: "8f43ea04-9012-4cd7-8d14-d4e202c9ddc0"
-      existing_network_id: "7cdd4ee0-cb53-40b7-b8e8-50a324c261f8"
       vm_enabled: "true"
-      bootstrap_ssh_public_key: ""
     secrets: inherit
 
