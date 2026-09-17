@@ -20,8 +20,8 @@ module "github_actions_identity_federation" {
   project_id = var.project_id
   name       = var.name
 
-  github_repository     = var.github_repository
-  github_subjects       = var.github_subjects
+  github_repository = var.github_repository
+  github_subjects   = var.github_subjects
 
   roles       = var.roles
   permissions = var.permissions
