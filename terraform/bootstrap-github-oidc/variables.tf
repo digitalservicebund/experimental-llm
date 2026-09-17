@@ -42,6 +42,11 @@ variable "additional_assertions" {
       operator = "equals"
       value    = "digitalservicebund/experimental-llm/.github/workflows/terraform-apply.yml@refs/heads/main"
     },
+    {
+      item     = "job_workflow_ref"
+      operator = "equals"
+      value    = "digitalservicebund/experimental-llm/.github/workflows/terraform-destroy.yml@refs/heads/main"
+    },
   ]
 }
 

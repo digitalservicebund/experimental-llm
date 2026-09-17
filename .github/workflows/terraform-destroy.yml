@@ -1,0 +1,85 @@
+name: Terraform Destroy Non-Prod
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Type destroy-non-prod to confirm deleting all non-prod resources
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  TF_IN_AUTOMATION: true
+
+jobs:
+  destroy:
+    name: Destroy all non-prod resources
+    runs-on: ubuntu-latest
+
+    env:
+      TF_VAR_bootstrap_ssh_public_key: ${{ vars.BOOTSTRAP_SSH_PUBLIC_KEY }}
+      TF_VAR_backend_access_key_id: ${{ secrets.BACKEND_ACCESS_KEY_ID }}
+      TF_VAR_backend_secret_access_key: ${{ secrets.BACKEND_SECRET_ACCESS_KEY }}
+
+    steps:
+      - name: Validate confirmation and branch
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${{ github.event.inputs.confirmation }}" != "destroy-non-prod" ]]; then
+            echo "::error::Type destroy-non-prod to confirm full teardown."
+            exit 1
+          fi
+
+          if [[ "${GITHUB_REF}" != "refs/heads/main" ]]; then
+            echo "::error::Full non-prod destroy must be run from the main branch."
+            exit 1
+          fi
+
+      - name: Check out repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - name: Install Terraform
+        uses: digitalservicebund/setup-terraform@400976bd246bef1e51fe73695fe7658ce484bc43
+
+      - name: Configure Terraform credentials
+        env:
+          STACKIT_SERVICE_ACCOUNT_EMAIL: ${{ vars.STACKIT_SERVICE_ACCOUNT_EMAIL }}
+          BACKEND_ACCESS_KEY_ID: ${{ secrets.BACKEND_ACCESS_KEY_ID }}
+          BACKEND_SECRET_ACCESS_KEY: ${{ secrets.BACKEND_SECRET_ACCESS_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${STACKIT_SERVICE_ACCOUNT_EMAIL:-}" ]]; then
+            echo "::error::Repository variable STACKIT_SERVICE_ACCOUNT_EMAIL is required for Terraform destroy."
+            exit 1
+          fi
+
+          {
+            echo "AWS_ACCESS_KEY_ID=${BACKEND_ACCESS_KEY_ID}"
+            echo "AWS_SECRET_ACCESS_KEY=${BACKEND_SECRET_ACCESS_KEY}"
+            echo "STACKIT_SERVICE_ACCOUNT_EMAIL=${STACKIT_SERVICE_ACCOUNT_EMAIL}"
+            echo "STACKIT_USE_OIDC=1"
+          } >> "${GITHUB_ENV}"
+
+      - name: Initialize Terraform
+        working-directory: terraform/non-prod
+        shell: bash
+        run: terraform init -input=false
+
+      - name: Plan Terraform destroy
+        working-directory: terraform/non-prod
+        shell: bash
+        run: terraform plan -destroy -input=false -lock=false -out .destroy.plan
+
+      - name: Apply Terraform destroy plan
+        working-directory: terraform/non-prod
+        shell: bash
+        run: terraform apply -input=false -auto-approve .destroy.plan
+
