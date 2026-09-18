@@ -82,10 +82,19 @@
     enabled: true
     state: started
 
-- name: Provision shared SSH key for ubuntu
+- name: Provision individual SSH keys for ubuntu
   ansible.posix.authorized_key:
     user: ubuntu
-    key: "{{ lookup('ansible.builtin.env', 'SHARED_SSH_KEY') }}"
+    key: "{{ item }}"
     state: present
+    manage_dir: true
+  loop: "{{ lookup('ansible.builtin.env', 'SSH_KEYS') | split('\n') | select | map('trim') | list }}"
+  no_log: true
+
+- name: Remove shared bootstrap SSH key from ubuntu
+  ansible.posix.authorized_key:
+    user: ubuntu
+    key: "{{ lookup('ansible.builtin.env', 'SHARED_SSH_KEY') | trim }}"
+    state: absent
     manage_dir: true
   no_log: true

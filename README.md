@@ -94,6 +94,34 @@ op run --env-file=.env.op -- sh -c 'ssh-keyscan -H "$SERVER_PUBLIC_IP" >> ~/.ssh
 Verify the printed fingerprint against the one shown in the STACKIT console (or
 another trusted out-of-band source) before trusting it.
 
+#### SSH access: per-person keys
+
+Server SSH access uses **individual** public keys, not a shared key.
+
+- **Bootstrap** — item `fvjqgnxvd7wtrgsnrgu3xqlvpm`, field `public key`. A single
+  key that Terraform injects via cloud-init on the initial boot so the first person
+  can SSH in and run Ansible.
+- **Individual keys** — item `eslyhyeireaxhtopettp7fxbwm`, field `keys`. A
+  **multi-line** list of individual team public keys. Ansible's `common` role
+  provisions these and, on the first run, removes the bootstrap key. After that,
+  only the individual keys in `keys` can access the server.
+
+**Onboarding a new person:**
+1. Ask them to generate a keypair (e.g. `ssh-keygen -t ed25519`).
+2. Add their public key as a new line to the `keys` field of item
+   `eslyhyeireaxhtopettp7fxbwm`.
+3. Run `./do apply` (or let CI run it) so the new key is provisioned.
+
+**Offboarding:**
+Remove their line from the `keys` field of item `eslyhyeireaxhtopettp7fxbwm` and
+run `./do apply`. The
+`authorized_keys` task manages the set declaratively, so removed keys are revoked
+on the next run.
+
+The bootstrap `public key` (item `fvjqgnxvd7wtrgsnrgu3xqlvpm`) should be treated as
+throwaway: once the server is provisioned it is removed, and it must not be
+re-added to the `keys` field.
+
 ### LiteLLM Proxy and Virtual Keys
 
 The deployment runs three services:
