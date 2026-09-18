@@ -37,10 +37,6 @@ llm_gpu_memory_utilization: 0.90
 # Keep the vLLM API bound to the host. It's accessed only by LiteLLM proxy on localhost.
 llm_api_host: 127.0.0.1
 
-# The workstation secret wrapper provides this only for the duration of a run.
-# Leave HF_TOKEN unset for public model repositories.
-llm_huggingface_token: "{{ lookup('ansible.builtin.env', 'HF_TOKEN') }}"
-
 # LiteLLM Proxy Configuration
 # Master key for securing the /key/generate endpoint (generate Virtual Keys post-deployment)
 litellm_master_key: "{{ lookup('ansible.builtin.env', 'LLM_MASTER_KEY') }}"
