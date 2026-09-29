@@ -7,3 +7,5 @@
 **/*.tfplan
 **/*.tfvars
 **/crash.log
+
+*.drawio.bkp
