@@ -36,11 +36,3 @@ llm_gpu_memory_utilization: 0.90
 
 # Keep the vLLM API bound to the host. It's accessed only by LiteLLM proxy on localhost.
 llm_api_host: 127.0.0.1
-
-# LiteLLM Proxy Configuration
-# Master key for securing the /key/generate endpoint (generate Virtual Keys post-deployment)
-litellm_master_key: "{{ lookup('ansible.builtin.env', 'LLM_MASTER_KEY') }}"
-
-# PostgreSQL Configuration for LiteLLM
-# Database password for the litellm user (used by LiteLLM proxy for metrics, spend logs, key storage)
-postgresql_litellm_password: "{{ lookup('ansible.builtin.env', 'POSTGRESQL_PASSWORD') }}"

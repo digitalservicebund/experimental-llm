@@ -1,0 +1,49 @@
+# PostgreSQL - Base Helm Chart Values
+# These values are shared across all environments
+# Using Bitnami PostgreSQL Helm Chart
+
+auth:
+  # Database name for LiteLLM
+  database: litellm
+  # Username is set in overlay-specific values
+  username: litellm
+
+primary:
+  # Persistent volume for data
+  persistence:
+    enabled: true
+    size: 10Gi
+    storageClassName: csi-sc-fast
+
+  # Resource requests/limits
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+  # Pod security context
+  podSecurityContext:
+    enabled: true
+    fsGroup: 1001
+
+  # Container security context
+  containerSecurityContext:
+    enabled: true
+    runAsUser: 1001
+    runAsNonRoot: true
+
+# Disable read replicas for staging
+readReplicas:
+  enabled: false
+
+# Metrics
+metrics:
+  enabled: false
+
+# Backup disabled for internal staging use
+backup:
+  enabled: false
+

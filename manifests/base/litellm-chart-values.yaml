@@ -1,0 +1,87 @@
+# LiteLLM Proxy - Base Helm Chart Values
+# These values are shared across all environments
+
+replicaCount: 1
+
+image:
+  repository: ghcr.io/berriai/litellm
+  pullPolicy: IfNotPresent
+  tag: ""  # Defaults to Chart.appVersion
+
+service:
+  type: ClusterIP
+  port: 4000
+  targetPort: 4000
+
+resources:
+  requests:
+    memory: "512Mi"
+    cpu: "250m"
+  limits:
+    memory: "2Gi"
+
+# Security context for the pod
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsReadOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
+# Pod security context
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsReadOnlyRootFilesystem: true
+
+# Volume mounts for temporary files needed by litellm
+volumeMounts:
+  - name: tmp
+    mountPath: /tmp
+  - name: config
+    mountPath: /etc/litellm
+    readOnly: true
+  - name: litellm-tmp
+    mountPath: /app/.litellm
+
+volumes:
+  - name: tmp
+    emptyDir: {}
+  - name: config
+    configMap:
+      name: litellm-config
+  - name: litellm-tmp
+    emptyDir: {}
+
+# Environment variables
+env:
+  - name: LITELLM_LOG_LEVEL
+    value: "INFO"
+  - name: LITELLM_DEBUG
+    value: "false"
+
+# Liveness and readiness probes
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 4000
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 4000
+  initialDelaySeconds: 10
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+# Pod Disruption Budget
+podDisruptionBudget:
+  minAvailable: 1
+

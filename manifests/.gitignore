@@ -1,0 +1,3 @@
+# Helm charts are downloaded by Kustomize when building manifests
+charts/
+

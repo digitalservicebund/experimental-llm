@@ -9,3 +9,6 @@
 **/crash.log
 
 *.drawio.bkp
+
+# Generated Kubernetes secret manifests
+manifests/overlays/staging/do-not-commit.yaml
