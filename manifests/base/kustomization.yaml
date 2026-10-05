@@ -22,6 +22,14 @@ helmCharts:
       primary:
         persistence:
           size: 10Gi
+      # Override images to use whitelisted alternatives
+      image:
+        repository: postgres
+        tag: "16"
+      volumePermissions:
+        image:
+          repository: bitnamilegacy/os-shell
+          tag: "12-debian-12-r16"
       # Labels for billing and identification
       labels:
         app.kubernetes.io/name: litellm-postgres
