@@ -28,12 +28,16 @@ primary:
   podSecurityContext:
     enabled: true
     fsGroup: 1001
+    seccompProfile:
+      type: RuntimeDefault
 
   # Container security context
   containerSecurityContext:
     enabled: true
     runAsUser: 1001
     runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
 
 # Disable read replicas for staging
 readReplicas:
