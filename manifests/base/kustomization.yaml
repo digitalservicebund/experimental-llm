@@ -48,6 +48,19 @@ helmCharts:
       service:
         type: ClusterIP
         port: 4000
+      db:
+        useExisting: true
+        deployStandalone: false
+        endpoint: litellm-postgres-postgresql
+        database: litellm
+        secret:
+          name: litellm-db-credentials
+          usernameKey: username
+          passwordKey: password
+      masterkeySecretName: litellm-secrets
+      masterkeySecretKey: master-key
+      envVars:
+        VLLM_API_BASE: "http://localhost:8000/v1"
       proxy_config:
         litellm_settings:
           log_level: INFO
@@ -75,18 +88,5 @@ helmCharts:
         app.kubernetes.io/name: litellm
         app.kubernetes.io/instance: staging
         digitalservice.dev/project: internal
-      # Database connection (via External Secret)
-      env:
-        - name: DATABASE_URL
-          valueFrom:
-            secretKeyRef:
-              name: litellm-db-credentials
-              key: connection-string
-        - name: MASTER_KEY
-          valueFrom:
-            secretKeyRef:
-              name: litellm-secrets
-              key: master-key
-        - name: VLLM_API_BASE
-          value: "http://localhost:8000/v1"  # Configure for your vLLM instance
+
 
