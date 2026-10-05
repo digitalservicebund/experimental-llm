@@ -29,12 +29,16 @@ securityContext:
   capabilities:
     drop:
       - ALL
+  seccompProfile:
+    type: RuntimeDefault
 
 # Pod security context
 podSecurityContext:
   runAsNonRoot: true
   runAsUser: 1000
   fsReadOnlyRootFilesystem: true
+  seccompProfile:
+    type: RuntimeDefault
 
 # Volume mounts for temporary files needed by litellm
 volumeMounts:
