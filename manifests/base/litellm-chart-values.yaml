@@ -40,24 +40,6 @@ podSecurityContext:
   seccompProfile:
     type: RuntimeDefault
 
-# Volume mounts for temporary files needed by litellm
-volumeMounts:
-  - name: tmp
-    mountPath: /tmp
-  - name: config
-    mountPath: /etc/litellm
-    readOnly: true
-  - name: litellm-tmp
-    mountPath: /app/.litellm
-
-volumes:
-  - name: tmp
-    emptyDir: {}
-  - name: config
-    configMap:
-      name: litellm-config
-  - name: litellm-tmp
-    emptyDir: {}
 
 # Environment variables
 env:
