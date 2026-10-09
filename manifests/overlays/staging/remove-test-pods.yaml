@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: litellm-test-connection
+$patch: delete
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: litellm-env-test
+$patch: delete

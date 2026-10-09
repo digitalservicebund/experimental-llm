@@ -12,6 +12,9 @@ resources:
   - secret-store.yaml
   - external-secrets.yaml
 
+patchesStrategicMerge:
+  - remove-test-pods.yaml
+
 patches:
   - path: migrations-job-sync-wave.yaml
     target:
