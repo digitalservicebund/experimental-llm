@@ -8,5 +8,6 @@ namespace: llm-gateway-internal
 # Resources from base (if any)
 resources:
   - ../../base
+  - secrets-manager-password.yaml
   - secret-store.yaml
   - external-secrets.yaml
