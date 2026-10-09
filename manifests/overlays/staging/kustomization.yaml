@@ -11,3 +11,11 @@ resources:
   - secrets-manager-password.yaml
   - secret-store.yaml
   - external-secrets.yaml
+
+patches:
+  - path: migrations-job-sync-wave.yaml
+    target:
+      group: batch
+      version: v1
+      kind: Job
+      name: litellm-migrations

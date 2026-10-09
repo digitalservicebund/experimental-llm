@@ -59,6 +59,16 @@ helmCharts:
           passwordKey: password
       masterkeySecretName: litellm-secrets
       masterkeySecretKey: master-key
+      migrationJob:
+        hooks:
+          argocd:
+            enabled: false
+        resources:
+          requests:
+            cpu: 250m
+            memory: 512Mi
+          limits:
+            memory: 2Gi
       envVars:
         VLLM_API_BASE: "http://localhost:8000/v1"
       proxy_config:
