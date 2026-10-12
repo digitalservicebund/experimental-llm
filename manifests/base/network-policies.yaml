@@ -22,9 +22,9 @@ spec:
               app.kubernetes.io/name: coredns
       ports:
         - protocol: UDP
-          port: 53
+          port: 8053
         - protocol: TCP
-          port: 53
+          port: 8053
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
