@@ -8,11 +8,24 @@ namespace: llm-gateway-internal
 # Resources from base (if any)
 resources:
   - ../../base
+  - pdb.yaml
   - secrets-manager-password.yaml
   - secret-store.yaml
   - external-secrets.yaml
 
 patches:
+  - path: deployment-proxy-component.yaml
+    target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: litellm
+  - path: job-migration-component.yaml
+    target:
+      group: batch
+      version: v1
+      kind: Job
+      name: litellm-migrations
   - path: remove-test-pods.yaml
   - path: migrations-job-sync-wave.yaml
     target:

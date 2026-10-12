@@ -103,8 +103,7 @@ readinessProbe:
   failureThreshold: 3
 
 pdb:
-  enabled: true
-  maxUnavailable: 1
+  enabled: false
 
 # Labels for billing and identification
 labels:

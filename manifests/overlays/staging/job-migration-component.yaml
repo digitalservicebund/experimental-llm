@@ -1,0 +1,9 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: litellm-migrations
+spec:
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: migration
