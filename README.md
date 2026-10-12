@@ -68,7 +68,7 @@ collections in `ansible/requirements.yml`. `pipx ensurepath` only updates the
 shell `PATH`, so it stays out of `requirements.txt`.
 
 From the repository root, use the shared `do` command runner to lint, apply Ansible, 
-and open an SSH tunnel to the server. To see available commands, run:
+and port-forward the LiteLLM API locally. To see available commands, run:
 
 ```bash
 ./do
@@ -104,17 +104,17 @@ The deployment runs three services:
 3. **LiteLLM Proxy** on `127.0.0.1:4000` (internal only) — provides
    authentication and metrics on top of vLLM
 
-Clients access the LiteLLM proxy via SSH tunnel. The proxy uses **Virtual Keys**
+Clients access the LiteLLM proxy via local port forwarding. The proxy uses **Virtual Keys**
 for authentication instead of a static key.
 
 #### Generating Virtual Keys
 
 After the Ansible playbook completes and LiteLLM is running, generate Virtual
-Keys for your users. Open an SSH tunnel and use the master key to generate them:
+Keys for your users. Port-forward the API and use the master key to generate them:
 
 ```bash
-# Terminal 1: Open SSH tunnel to LiteLLM
-./do tunnel
+# Terminal 1: Forward the LiteLLM API locally
+./do port-forward
 
 # Terminal 2: Generate a Virtual Key using the master key and ./do
 ./do generate-keys my_key_alias
@@ -149,21 +149,6 @@ journalctl -u vllm -f                 # follow live
 journalctl -u vllm -n 200 --no-pager  # last N lines
 journalctl -u vllm -p err -e          # errors only
 ```
-
-### SSH tunnel for local clients (for example opencode)
-
-`./do tunnel` opens a local tunnel to the server; by default it forwards
-`127.0.0.1:4000` (LiteLLM proxy). Customize the local and remote ports with environment variables:
-
-```bash
-VLLM_TUNNEL_LOCAL_PORT=8000 \
-VLLM_TUNNEL_REMOTE_PORT=8000 \
-./do tunnel
-```
-
-Then point your OpenAI-compatible client (including opencode) at
-`http://127.0.0.1:4000/v1` and authenticate with your Virtual Key as the
-`Authorization: Bearer` token.
 
 ## Upstream references
 
