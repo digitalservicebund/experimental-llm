@@ -1,6 +1,3 @@
-# LiteLLM Proxy - Base Helm Chart Values
-# These values are shared across all environments
-
 replicaCount: 1
 
 image:
@@ -13,14 +10,37 @@ service:
   port: 4000
   targetPort: 4000
 
+db:
+  useExisting: true
+  deployStandalone: false
+  endpoint: litellm-postgres-postgresql
+  database: litellm
+  secret:
+    name: litellm-db-credentials
+    usernameKey: username
+    passwordKey: password
+
+masterkeySecretName: litellm-secrets
+masterkeySecretKey: master-key
+
+migrationJob:
+  hooks:
+    argocd:
+      enabled: false
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      memory: 2Gi
+
 resources:
   requests:
-    memory: "512Mi"
-    cpu: "250m"
+    memory: 512Mi
+    cpu: 250m
   limits:
-    memory: "2Gi"
+    memory: 2Gi
 
-# Security context for the pod
 securityContext:
   runAsNonRoot: true
   runAsUser: 1000
@@ -32,7 +52,6 @@ securityContext:
   seccompProfile:
     type: RuntimeDefault
 
-# Pod security context
 podSecurityContext:
   runAsNonRoot: true
   runAsUser: 1000
@@ -40,15 +59,32 @@ podSecurityContext:
   seccompProfile:
     type: RuntimeDefault
 
+envVars:
+  VLLM_API_BASE: "http://localhost:8000/v1"
 
-# Environment variables
-env:
-  - name: LITELLM_LOG_LEVEL
-    value: "INFO"
-  - name: LITELLM_DEBUG
-    value: "false"
+proxy_config:
+  litellm_settings:
+    log_level: INFO
+    debug: false
+    pass_through_error_codes:
+      - 429
+      - 500
+      - 502
+      - 503
+      - 504
+    enable_logging: true
+    log_response_per_token: true
+  router_settings:
+    default_max_retries: 3
+    default_timeout: 600
+  model_list:
+    - model_name: qwen-coder
+      litellm_params:
+        model: openai/qwen-coder-32b
+        api_base: ${VLLM_API_BASE}
+        api_key: sk-1234
+        api_version: "2024-01-01"
 
-# Liveness and readiness probes
 livenessProbe:
   httpGet:
     path: /health
@@ -67,8 +103,12 @@ readinessProbe:
   timeoutSeconds: 3
   failureThreshold: 3
 
-# Pod Disruption Budget
 pdb:
   enabled: true
   maxUnavailable: 1
 
+# Labels for billing and identification
+labels:
+  app.kubernetes.io/name: litellm
+  app.kubernetes.io/instance: staging
+  digitalservice.dev/project: internal

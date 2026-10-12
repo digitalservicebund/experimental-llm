@@ -1,37 +1,44 @@
-# PostgreSQL - Base Helm Chart Values
-# These values are shared across all environments
-# Using Bitnami PostgreSQL Helm Chart
-
 auth:
-  # Database name for LiteLLM
   database: litellm
-  # Username is set in overlay-specific values
   username: litellm
+  existingSecret: litellm-postgres-auth
+  secretKeys:
+    adminPasswordKey: postgres-password
+    userPasswordKey: password
+
+# Override images to use whitelisted alternatives
+image:
+  registry: docker.io
+  repository: postgres
+  tag: "16"
+
+volumePermissions:
+  enabled: false
+  image:
+    registry: docker.io
+    repository: bitnamilegacy/os-shell
+    tag: "12-debian-12-r16"
 
 primary:
-  # Persistent volume for data
   persistence:
     enabled: true
     size: 10Gi
     storageClassName: csi-sc-fast
 
-  # Resource requests/limits
   resources:
     requests:
-      memory: "256Mi"
-      cpu: "100m"
+      memory: 256Mi
+      cpu: 100m
     limits:
-      memory: "512Mi"
-      cpu: "500m"
+      memory: 512Mi
+      cpu: 500m
 
-  # Pod security context
   podSecurityContext:
     enabled: true
     fsGroup: 1001
     seccompProfile:
       type: RuntimeDefault
 
-  # Container security context
   containerSecurityContext:
     enabled: true
     runAsUser: 1001
@@ -39,7 +46,6 @@ primary:
     seccompProfile:
       type: RuntimeDefault
 
-  # Extra volume mounts for /var/run/postgresql
   extraVolumeMounts:
     - name: run-postgresql
       mountPath: /var/run/postgresql
@@ -51,15 +57,17 @@ primary:
         medium: Memory
         sizeLimit: 128Mi
 
-# Disable read replicas for staging
 readReplicas:
   enabled: false
 
-# Metrics
 metrics:
   enabled: false
 
-# Backup disabled for internal staging use
 backup:
   enabled: false
 
+# Labels for billing and identification
+labels:
+  app.kubernetes.io/name: litellm-postgres
+  app.kubernetes.io/instance: staging
+  digitalservice.dev/project: internal

@@ -13,31 +13,6 @@ helmCharts:
     releaseName: litellm-postgres
     namespace: llm-gateway-internal
     valuesFile: postgres-chart-values.yaml
-    valuesInline:
-      auth:
-        existingSecret: litellm-postgres-auth
-        secretKeys:
-          adminPasswordKey: postgres-password
-          userPasswordKey: password
-      primary:
-        persistence:
-          size: 10Gi
-      # Override images to use whitelisted alternatives
-      image:
-        registry: docker.io
-        repository: postgres
-        tag: "16"
-      volumePermissions:
-        enabled: false
-        image:
-          registry: docker.io
-          repository: bitnamilegacy/os-shell
-          tag: "12-debian-12-r16"
-      # Labels for billing and identification
-      labels:
-        app.kubernetes.io/name: litellm-postgres
-        app.kubernetes.io/instance: staging
-        digitalservice.dev/project: internal
 
   # LiteLLM Proxy
   - name: litellm-helm
@@ -46,58 +21,3 @@ helmCharts:
     releaseName: litellm
     namespace: llm-gateway-internal
     valuesFile: litellm-chart-values.yaml
-    valuesInline:
-      replicaCount: 1
-      service:
-        type: ClusterIP
-        port: 4000
-      db:
-        useExisting: true
-        deployStandalone: false
-        endpoint: litellm-postgres-postgresql
-        database: litellm
-        secret:
-          name: litellm-db-credentials
-          usernameKey: username
-          passwordKey: password
-      masterkeySecretName: litellm-secrets
-      masterkeySecretKey: master-key
-      migrationJob:
-        hooks:
-          argocd:
-            enabled: false
-        resources:
-          requests:
-            cpu: 250m
-            memory: 512Mi
-          limits:
-            memory: 2Gi
-      envVars:
-        VLLM_API_BASE: "http://localhost:8000/v1"
-      proxy_config:
-        litellm_settings:
-          log_level: INFO
-          debug: false
-          pass_through_error_codes:
-            - 429
-            - 500
-            - 502
-            - 503
-            - 504
-          enable_logging: true
-          log_response_per_token: true
-        router_settings:
-          default_max_retries: 3
-          default_timeout: 600
-        model_list:
-          - model_name: qwen-coder
-            litellm_params:
-              model: openai/qwen-coder-32b
-              api_base: ${VLLM_API_BASE}
-              api_key: sk-1234
-              api_version: "2024-01-01"
-      # Labels for billing and identification
-      labels:
-        app.kubernetes.io/name: litellm
-        app.kubernetes.io/instance: staging
-        digitalservice.dev/project: internal
