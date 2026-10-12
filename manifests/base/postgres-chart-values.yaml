@@ -39,6 +39,18 @@ primary:
     seccompProfile:
       type: RuntimeDefault
 
+  # Extra volume mounts for /var/run/postgresql
+  extraVolumeMounts:
+    - name: run-postgresql
+      mountPath: /var/run/postgresql
+
+  # Extra volumes for /var/run/postgresql (tmpfs)
+  extraVolumes:
+    - name: run-postgresql
+      emptyDir:
+        medium: Memory
+        sizeLimit: 128Mi
+
 # Disable read replicas for staging
 readReplicas:
   enabled: false
