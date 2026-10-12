@@ -68,6 +68,7 @@ readinessProbe:
   failureThreshold: 3
 
 # Pod Disruption Budget
-podDisruptionBudget:
-  minAvailable: 1
+pdb:
+  enabled: true
+  maxUnavailable: 1
 
