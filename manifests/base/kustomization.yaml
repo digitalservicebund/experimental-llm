@@ -24,11 +24,13 @@ helmCharts:
           size: 10Gi
       # Override images to use whitelisted alternatives
       image:
+        registry: docker.io
         repository: postgres
         tag: "16"
       volumePermissions:
         enabled: false
         image:
+          registry: docker.io
           repository: bitnamilegacy/os-shell
           tag: "12-debian-12-r16"
       # Labels for billing and identification
@@ -99,5 +101,3 @@ helmCharts:
         app.kubernetes.io/name: litellm
         app.kubernetes.io/instance: staging
         digitalservice.dev/project: internal
-
-
