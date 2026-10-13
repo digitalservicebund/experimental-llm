@@ -58,15 +58,18 @@ extraVolumes:
 
 extraVolumeMounts:
   - name: config-dir
-    mountPath: /.config
+    mountPath: /tmp
 
 podSecurityContext:
   runAsNonRoot: true
   runAsUser: 1000
+  fsGroup: 1000
   seccompProfile:
     type: RuntimeDefault
 
 envVars:
+  HOME: "/tmp"
+  XDG_CONFIG_HOME: "/tmp/.config"
   VLLM_API_BASE: "http://localhost:8000/v1"
 
 proxy_config:
