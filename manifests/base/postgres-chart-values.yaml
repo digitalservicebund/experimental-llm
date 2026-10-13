@@ -27,11 +27,10 @@ primary:
 
   resources:
     requests:
-      memory: 256Mi
-      cpu: 100m
+      cpu: 22m
+      memory: 105Mi
     limits:
-      memory: 512Mi
-      cpu: 500m
+      memory: 196Mi
 
   podSecurityContext:
     enabled: true

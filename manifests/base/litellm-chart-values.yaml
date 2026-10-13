@@ -36,10 +36,10 @@ migrationJob:
 
 resources:
   requests:
-    memory: 1Gi
-    cpu: 500m
+    cpu: 10m
+    memory: 683Mi
   limits:
-    memory: 2Gi
+    memory: 1616Mi
 
 securityContext:
   runAsNonRoot: true
