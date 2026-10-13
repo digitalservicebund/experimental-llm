@@ -9,15 +9,15 @@ usage() {
 Usage: ./do <command> [args]
 
 Commands:
-  lint             Run local Ansible lint and syntax checks.
-  apply [tags]     Run Ansible apply. Optional: specify tags to limit tasks.
-                   Common tags: common, postgresql, vllm, litellm
-                   Example: ./do apply litellm
-  ping [args...]   Ping host (with args passed to ansible).
-  login [args...]  SSH into the server (with args passed to ssh).
-  port-forward     Forward local port to the LiteLLM API.
-  generate-keys    Generate Virtual Keys for LiteLLM proxy authentication.
-  help             Show this help text.
+  lint                    Run local Ansible lint and syntax checks.
+  apply [tags]            Run Ansible apply. Optional: specify tags to limit tasks.
+                          Common tags: common, postgresql, vllm, litellm
+                          Example: ./do apply litellm
+  ping [args...]          Ping host (with args passed to ansible).
+  login [args...]         SSH into the server (with args passed to ssh).
+  port-forward            Forward local port to the LiteLLM API.
+  generate-key <alias>    Generate Virtual Keys for LiteLLM proxy authentication.
+  help                    Show this help text.
 EOF
 }
 
@@ -61,7 +61,7 @@ case "${command}" in
 
   login)
     ssh_user="${SSH_USER:-ubuntu}"
-    server_public_ip="$(cd "${ansible_dir}" && op read "op://z3yr24dkqmdjsvc724nouabjpi/eslyhyeireaxhtopettp7fxbwm/server-public-ip")"
+    server_public_ip="$(op read "op://z3yr24dkqmdjsvc724nouabjpi/eslyhyeireaxhtopettp7fxbwm/server-public-ip")"
     exec ssh "${ssh_user}@${server_public_ip}" "$@"
     ;;
 
@@ -71,17 +71,21 @@ case "${command}" in
     kubectl port-forward -n llm-gateway-internal svc/litellm "${local_port}:${remote_port}"
     ;;
 
-  generate-keys)
-    key_alias="${1:-test_key_1}"
-    cd "${ansible_dir}"
-    op run --env-file=.env.op -- bash -c '
-      set -euo pipefail
-      echo "Generating Virtual Key: '"${key_alias}"'" >&2
-      curl -s -X POST "http://127.0.0.1:4000/key/generate" \
-        -H "Authorization: Bearer ${LLM_MASTER_KEY}" \
-        -H "Content-Type: application/json" \
-        -d "{\"key_alias\": \"'"${key_alias}"'\"}" | jq .
-    '
+  generate-key)
+    if [[ $# -gt 0 ]]; then
+      key_alias="$1"
+      shift
+    else
+      echo "Error: Missing key alias argument." >&2
+      usage >&2
+      exit 1
+    fi
+    litellm_master_key="$(op read "op://z3yr24dkqmdjsvc724nouabjpi/eslyhyeireaxhtopettp7fxbwm/litellm-master-key")"
+    echo "Generating Virtual Key: '${key_alias}'" >&2
+    curl -s -X POST "http://127.0.0.1:4000/key/generate" \
+      -H "Authorization: Bearer ${litellm_master_key}" \
+      -H "Content-Type: application/json" \
+      -d "{\"key_alias\": \"'${key_alias}'\"}" | jq .
     ;;
 
   help|-h|--help)
