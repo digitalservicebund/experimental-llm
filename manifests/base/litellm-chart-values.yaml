@@ -94,20 +94,6 @@ proxy_config:
         api_base: ${VLLM_API_BASE}
         api_key: sk-1234
         api_version: "2024-01-01"
-    # The GitHub Copilot credential itself must be created once in the LiteLLM UI
-    # as a Per-user GitHub OAuth credential named `github-copilot`.
-    - model_name: claude-copilot
-      litellm_params:
-        model: github_copilot/claude-sonnet-5.5
-        litellm_credential_name: github-copilot
-    - model_name: copilot-codex
-      litellm_params:
-        model: github_copilot/gpt-5.3-codex
-        litellm_credential_name: github-copilot
-    - model_name: copilot-embeddings
-      litellm_params:
-        model: github_copilot/text-embedding-3-small
-        litellm_credential_name: github-copilot
 
 livenessProbe:
   httpGet:
