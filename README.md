@@ -34,23 +34,27 @@ export STACKIT_SERVICE_ACCOUNT_TOKEN=$(stackit auth get-access-token)
 ## Workstation setup
 
 On macOS, install the control-node tools with Homebrew and the official Ansible
-`pipx` method:
+`pipx` method. Pin the pipx environment to Python 3.14: `ansible-core` 2.21 does
+not support Python 3.15, which may already be installed and used as default Python.
 
 ```bash
-brew install pipx
+brew install pipx python@3.14
 pipx ensurepath
 # Open a new terminal after ensurepath, if pipx is not yet on PATH.
-pipx install --include-deps ansible-core==2.21.3
-ansible --version
+pipx install --python "$(brew --prefix python@3.14)/bin/python3.14" --include-deps ansible-core==2.21.3
+ansible --version  # should report python version = 3.14.x
 brew install 1password-cli
 op --version
 ```
 
 To run the same static checks locally as GitHub Actions, inject the linters into
-the Ansible pipx environment:
+the `ansible-core` pipx environment. Inject yamllint first and separately:
+ansible-lint pulls it in as a dependency, and pipx then skips exposing the
+yamllint command.
 
 ```bash
-pipx inject --include-apps ansible ansible-lint yamllint
+pipx inject --include-apps ansible-core yamllint
+pipx inject --include-apps ansible-core ansible-lint
 ansible-lint --version
 yamllint --version
 ```
@@ -67,7 +71,7 @@ The repository keeps Python control-node dependencies in
 collections in `ansible/requirements.yml`. `pipx ensurepath` only updates the
 shell `PATH`, so it stays out of `requirements.txt`.
 
-From the repository root, use the shared `do` command runner to lint, apply Ansible, 
+From the repository root, use the shared `do` command runner to lint, apply Ansible,
 and port-forward the LiteLLM API locally. To see available commands, run:
 
 ```bash
