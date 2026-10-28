@@ -72,6 +72,9 @@ persistence:
   storageClass: premium-perf1-stackit  # Same class as the Postgres PVC
   labels:
     digitalservice.dev/project: internal
+  # Same wave as the StatefulSet: the PVC only binds once its pod exists
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
 
 service:
   labels:
