@@ -4,7 +4,7 @@ set -euo pipefail
 repo_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 ansible_dir="${repo_dir}/ansible"
 # Keep in sync with image.tag in manifests/base/open-webui-chart-values.yaml
-open_webui_image="ghcr.io/open-webui/open-webui:0.12.4"
+open_webui_image="ghcr.io/open-webui/open-webui:0.12.4-slim"
 
 usage() {
   cat <<'EOF'
@@ -95,10 +95,15 @@ case "${command}" in
         jq -er .key
     )"
     export OPENAI_API_KEY
+    export RAG_OPENAI_API_KEY="${OPENAI_API_KEY}"
     docker run --rm \
       -p "127.0.0.1:${local_port}:8080" \
       -e OPENAI_API_KEY \
       -e OPENAI_API_BASE_URL=http://host.docker.internal:4000/v1 \
+      -e RAG_EMBEDDING_ENGINE=openai \
+      -e RAG_OPENAI_API_KEY \
+      -e RAG_OPENAI_API_BASE_URL=http://host.docker.internal:4000/v1 \
+      -e RAG_EMBEDDING_MODEL= \
       -e ENABLE_OLLAMA_API=False \
       -e ENABLE_PERSISTENT_CONFIG=False \
       -e WEBUI_AUTH=False \
