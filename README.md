@@ -92,7 +92,7 @@ Add SSH host key fingerprint to `known_hosts` before running Ansible so the
 connection is not prompted for interactive host key verification:
 
 ```bash
-op run --env-file=.env.op -- sh -c 'ssh-keyscan -H "$SERVER_PUBLIC_IP" >> ~/.ssh/known_hosts'
+op run --env-file=./ansible/.env.op -- sh -c 'ssh-keyscan -H "$SERVER_PUBLIC_IP" >> ~/.ssh/known_hosts'
 ```
 
 Verify the printed fingerprint against the one shown in the STACKIT console (or
@@ -100,28 +100,34 @@ another trusted out-of-band source) before trusting it.
 
 ### LiteLLM Proxy and Virtual Keys
 
-The deployment runs three services:
+The deployment runs three services in two places:
 
-1. **vLLM** on `127.0.0.1:8000` (internal only) — serves the model
-2. **PostgreSQL** on `127.0.0.1:5432` (internal only) — stores LiteLLM Virtual
-   Keys and spend/usage metrics
-3. **LiteLLM Proxy** on `127.0.0.1:4000` (internal only) — provides
-   authentication and metrics on top of vLLM
+1. **vLLM** on the GPU VM, `127.0.0.1:8000` (internal only) — serves the model.
+   The VM only exists while scaled up via the *Scale Up* workflow; Ansible
+   installs vLLM as a systemd service.
+2. **LiteLLM Proxy** in Kubernetes, namespace `llm-gateway-internal`, service
+   `litellm` on port 4000 — provides authentication and metrics on top of vLLM
+3. **PostgreSQL** in Kubernetes, same namespace — stores LiteLLM Virtual Keys
+   and spend/usage metrics
 
-Clients access the LiteLLM proxy via local port forwarding. The proxy uses **Virtual Keys**
+LiteLLM and PostgreSQL are deployed from `manifests/`. The VM and the Terraform
+module are still named `llm-gateway` because all three services used to run on
+the VM.
+
+Clients access the LiteLLM proxy via `kubectl port-forward`. The proxy uses **Virtual Keys**
 for authentication instead of a static key.
 
 #### Generating Virtual Keys
 
-After the Ansible playbook completes and LiteLLM is running, generate Virtual
-Keys for your users. Port-forward the API and use the master key to generate them:
+Once LiteLLM is running in Kubernetes, generate Virtual Keys for your users.
+Port-forward the API and use the master key to generate them:
 
 ```bash
 # Terminal 1: Forward the LiteLLM API locally
 ./do port-forward
 
 # Terminal 2: Generate a Virtual Key using the master key and ./do
-./do generate-keys my_key_alias
+./do generate-key my_key_alias
 ```
 
 Each request returns a JSON response with the generated key. Store these keys securely.
@@ -136,22 +142,40 @@ curl http://127.0.0.1:4000/v1/models \
 ```
 
 Virtual Keys are:
-- Stored in PostgreSQL on the server, alongside spend/usage metrics
+- Stored in PostgreSQL in Kubernetes, alongside spend/usage metrics
 - Revocable (can be deleted or disabled)
 - More secure than static keys (can be rotated without redeploying)
 
-### Checking service status and logs
+#### Using LiteLLM without the vLLM VM
 
-**vLLM** (`vllm`), **PostgreSQL** (`postgresql`), and **LiteLLM Proxy**
-(`litellm`) each run as systemd services. vLLM and LiteLLM log only to the
-journal. From an SSH session on the server:
+LiteLLM runs independently of the GPU VM. While the VM is scaled down you can
+still port-forward, check the proxy, generate keys, and list models. Only
+requests that reach the model, such as `/v1/chat/completions`, need the VM.
 
 ```bash
-systemctl status vllm postgresql litellm
+kubectl get pods -n llm-gateway-internal       # litellm and litellm-postgres pods
+curl http://127.0.0.1:4000/health/liveliness   # proxy liveness, no key needed
+```
+
+### Checking service status and logs
+
+**vLLM** runs as the `vllm` systemd service on the GPU VM and logs only to the
+journal. From an SSH session on the server (`./do login`):
+
+```bash
+systemctl status vllm
 
 journalctl -u vllm -f                 # follow live
 journalctl -u vllm -n 200 --no-pager  # last N lines
 journalctl -u vllm -p err -e          # errors only
+```
+
+**LiteLLM Proxy** and **PostgreSQL** run in Kubernetes:
+
+```bash
+kubectl get pods -n llm-gateway-internal
+kubectl logs -n llm-gateway-internal deploy/litellm -f
+kubectl logs -n llm-gateway-internal statefulset/litellm-postgres-postgresql -f
 ```
 
 ## Upstream references
