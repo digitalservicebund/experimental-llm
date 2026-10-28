@@ -100,7 +100,7 @@ another trusted out-of-band source) before trusting it.
 
 ### LiteLLM Proxy and Virtual Keys
 
-The deployment runs three services in two places:
+The deployment runs four services in two places:
 
 1. **vLLM** on the GPU VM, `127.0.0.1:8000` (internal only) — serves the model.
    The VM only exists while scaled up via the *Scale Up* workflow; Ansible
@@ -109,10 +109,12 @@ The deployment runs three services in two places:
    `litellm` on port 4000 — provides authentication and metrics on top of vLLM
 3. **PostgreSQL** in Kubernetes, same namespace — stores LiteLLM Virtual Keys
    and spend/usage metrics
+4. **Open WebUI** in Kubernetes, same namespace, service `open-webui` on port
+   80 — chat interface that uses LiteLLM with its own Virtual Key
 
-LiteLLM and PostgreSQL are deployed from `manifests/`. The VM and the Terraform
-module are still named `llm-gateway` because all three services used to run on
-the VM.
+LiteLLM, PostgreSQL, and Open WebUI are deployed from `manifests/`. The VM and
+the Terraform module are still named `llm-gateway` because vLLM, LiteLLM, and
+PostgreSQL used to run on the VM.
 
 Clients access the LiteLLM proxy via `kubectl port-forward`. The proxy uses **Virtual Keys**
 for authentication instead of a static key.
@@ -182,6 +184,16 @@ instance:
 ./do webui-local
 ```
 
+#### Using the cluster deployment
+
+```bash
+./do port-forward-webui   # Open WebUI on http://localhost:8080
+```
+
+Users log in with Open WebUI accounts. The first account created on a fresh
+deployment becomes the admin, so create it right after the first deployment.
+Self-signup is disabled; the admin adds all other users in the Admin Panel.
+
 ### Checking service status and logs
 
 **vLLM** runs as the `vllm` systemd service on the GPU VM and logs only to the
@@ -195,12 +207,13 @@ journalctl -u vllm -n 200 --no-pager  # last N lines
 journalctl -u vllm -p err -e          # errors only
 ```
 
-**LiteLLM Proxy** and **PostgreSQL** run in Kubernetes:
+**LiteLLM Proxy**, **PostgreSQL**, and **Open WebUI** run in Kubernetes:
 
 ```bash
 kubectl get pods -n llm-gateway-internal
 kubectl logs -n llm-gateway-internal deploy/litellm -f
 kubectl logs -n llm-gateway-internal statefulset/litellm-postgres-postgresql -f
+kubectl logs -n llm-gateway-internal statefulset/open-webui -f
 ```
 
 ## Upstream references
