@@ -85,7 +85,7 @@ case "${command}" in
     curl -s -X POST "http://127.0.0.1:4000/key/generate" \
       -H "Authorization: Bearer ${litellm_master_key}" \
       -H "Content-Type: application/json" \
-      -d "{\"key_alias\": \"'${key_alias}'\"}" | jq .
+      -d "$(jq -n --arg key_alias "${key_alias}" '{key_alias: $key_alias}')" | jq .
     ;;
 
   help|-h|--help)
