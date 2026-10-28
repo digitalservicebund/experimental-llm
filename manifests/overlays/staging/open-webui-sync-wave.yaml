@@ -1,0 +1,6 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: open-webui
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"

@@ -69,4 +69,46 @@ spec:
       ports:
         - protocol: TCP
           port: 5432
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-open-webui-to-litellm
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: open-webui
+      app.kubernetes.io/instance: open-webui
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: litellm
+              app.kubernetes.io/name: litellm
+      ports:
+        - protocol: TCP
+          port: 4000
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-litellm-from-open-webui
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: litellm
+      app.kubernetes.io/name: litellm
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: open-webui
+              app.kubernetes.io/instance: open-webui
+      ports:
+        - protocol: TCP
+          port: 4000
 

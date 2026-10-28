@@ -1,0 +1,157 @@
+# Chart values: https://github.com/open-webui/helm-charts/blob/open-webui-17.0.0/charts/open-webui/values.yaml
+# Environment variables: https://docs.openwebui.com/getting-started/env-configuration
+
+# Keep 1 replica: SQLite on an RWO PVC and an in-process websocket manager
+replicaCount: 1
+
+image:
+  repository: ghcr.io/open-webui/open-webui
+  tag: "0.12.4-slim"  # Keep in sync with open_webui_image in ./do
+
+ollama:
+  enabled: false
+pipelines:
+  enabled: false
+tika:
+  enabled: false
+terminals:
+  enabled: false
+
+websocket:
+  enabled: true
+  manager: ""
+  redis:
+    enabled: false
+
+openaiBaseApiUrl: http://litellm:4000/v1
+openaiApiKey: ""
+openaiApiKeyExistingSecret: open-webui-secrets
+openaiApiKeyExistingSecretKey: litellm-api-key
+
+extraEnvVars:
+  - name: WEBUI_SECRET_KEY
+    valueFrom:
+      secretKeyRef:
+        name: open-webui-secrets
+        key: webui-secret-key
+  # Read-only root filesystem: write to the /tmp emptyDir or the data PVC
+  - name: HOME
+    value: /tmp
+  - name: STATIC_DIR
+    value: /tmp/static
+  # No internet egress: never try to download models
+  - name: OFFLINE_MODE
+    value: "true"
+  - name: HF_HUB_OFFLINE
+    value: "1"
+  # Embeddings come from LiteLLM instead of a local model
+  - name: RAG_EMBEDDING_ENGINE
+    value: openai
+  - name: RAG_OPENAI_API_BASE_URL
+    value: http://litellm:4000/v1
+  # Name of the embedding model in LiteLLM, once there is one
+  - name: RAG_EMBEDDING_MODEL
+    value: ""
+  - name: RAG_OPENAI_API_KEY
+    valueFrom:
+      secretKeyRef:
+        name: open-webui-secrets
+        key: litellm-api-key
+  - name: ENABLE_PIP_INSTALL_FRONTMATTER_REQUIREMENTS
+    value: "False"
+  # The first account becomes admin and creates all other users
+  - name: ENABLE_SIGNUP
+    value: "False"
+  # Keep these values and the secret as source of truth instead of webui.db
+  - name: ENABLE_PERSISTENT_CONFIG
+    value: "False"
+
+persistence:
+  enabled: true
+  size: 5Gi
+  storageClass: csi-sc-fast
+  labels:
+    digitalservice.dev/project: internal
+
+service:
+  labels:
+    digitalservice.dev/project: internal
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  fsGroupChangePolicy: OnRootMismatch
+  seccompProfile:
+    type: RuntimeDefault
+
+# Applies to the copy-app-data init container and the main container
+containerSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  seccompProfile:
+    type: RuntimeDefault
+
+volumes:
+  - name: tmp
+    emptyDir:
+      sizeLimit: 2Gi
+
+volumeMounts:
+  container:
+    - name: tmp
+      mountPath: /tmp
+
+copyAppData:
+  # The chart's default glob fails if the slim image ships an empty data directory
+  command: ["sh", "-c", "cp -R -n /app/backend/data/. /tmp/app-data/"]
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+    limits:
+      memory: 256Mi
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 512Mi
+  limits:
+    memory: 2Gi
+
+startupProbe:
+  httpGet:
+    path: /health
+    port: http
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 30
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: http
+  periodSeconds: 20
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: http
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# Labels for billing and identification
+extraLabels:
+  digitalservice.dev/project: internal
+podLabels:
+  digitalservice.dev/project: internal

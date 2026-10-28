@@ -4,7 +4,7 @@ kind: Kustomization
 resources:
   - network-policies.yaml
 
-# Helm charts for LiteLLM and PostgreSQL
+# Helm charts for LiteLLM, PostgreSQL and Open WebUI
 helmCharts:
   # PostgreSQL for LiteLLM data and metrics storage
   - name: postgresql
@@ -21,3 +21,11 @@ helmCharts:
     releaseName: litellm
     namespace: llm-gateway-internal
     valuesFile: litellm-chart-values.yaml
+
+  # Open WebUI chat interface in front of LiteLLM
+  - name: open-webui
+    repo: https://open-webui.github.io/helm-charts
+    version: 17.0.0
+    releaseName: open-webui
+    namespace: llm-gateway-internal
+    valuesFile: open-webui-chart-values.yaml

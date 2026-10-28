@@ -9,3 +9,14 @@ spec:
       app.kubernetes.io/name: litellm
       app.kubernetes.io/instance: litellm
       app.kubernetes.io/component: proxy
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: open-webui
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: open-webui
+      app.kubernetes.io/component: open-webui

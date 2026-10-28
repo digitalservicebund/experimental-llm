@@ -100,7 +100,7 @@ another trusted out-of-band source) before trusting it.
 
 ### LiteLLM Proxy and Virtual Keys
 
-The deployment runs three services in two places:
+The deployment runs four services in two places:
 
 1. **vLLM** on the GPU VM, `127.0.0.1:8000` (internal only) — serves the model.
    The VM only exists while scaled up via the *Scale Up* workflow; Ansible
@@ -109,10 +109,12 @@ The deployment runs three services in two places:
    `litellm` on port 4000 — provides authentication and metrics on top of vLLM
 3. **PostgreSQL** in Kubernetes, same namespace — stores LiteLLM Virtual Keys
    and spend/usage metrics
+4. **Open WebUI** in Kubernetes, same namespace, service `open-webui` on port
+   80 — chat interface that uses LiteLLM with its own Virtual Key
 
-LiteLLM and PostgreSQL are deployed from `manifests/`. The VM and the Terraform
-module are still named `llm-gateway` because all three services used to run on
-the VM.
+LiteLLM, PostgreSQL, and Open WebUI are deployed from `manifests/`. The VM and
+the Terraform module are still named `llm-gateway` because vLLM, LiteLLM, and
+PostgreSQL used to run on the VM.
 
 Clients access the LiteLLM proxy via `kubectl port-forward`. The proxy uses **Virtual Keys**
 for authentication instead of a static key.
@@ -157,6 +159,41 @@ kubectl get pods -n llm-gateway-internal       # litellm and litellm-postgres po
 curl http://127.0.0.1:4000/health/liveliness   # proxy liveness, no key needed
 ```
 
+### Open WebUI
+
+Open WebUI uses one shared Virtual Key with the alias `open-webui` for all of
+its users. Users log in to Open WebUI with their own accounts; Open WebUI then
+calls LiteLLM with this key. Generate it once with
+`./do generate-key open-webui` and store it in 1Password as
+`open-webui-api-key`, next to the LiteLLM master key. In the cluster, Open WebUI
+reads the key and its session secret from the `open-webui-secrets` Secret,
+which External Secrets creates.
+
+#### Testing locally
+
+Run Open WebUI in Docker against the LiteLLM API in the cluster.
+`./do webui-local` creates a temporary Virtual Key with the master key from
+1Password; the key expires after 8 hours. Login is disabled for the local
+instance:
+
+```bash
+# Terminal 1: Forward the LiteLLM API locally
+./do port-forward
+
+# Terminal 2: Start Open WebUI on http://localhost:8080
+./do webui-local
+```
+
+#### Using the cluster deployment
+
+```bash
+./do port-forward-webui   # Open WebUI on http://localhost:8080
+```
+
+Users log in with Open WebUI accounts. The first account created on a fresh
+deployment becomes the admin, so create it right after the first deployment.
+Self-signup is disabled; the admin adds all other users in the Admin Panel.
+
 ### Checking service status and logs
 
 **vLLM** runs as the `vllm` systemd service on the GPU VM and logs only to the
@@ -170,12 +207,13 @@ journalctl -u vllm -n 200 --no-pager  # last N lines
 journalctl -u vllm -p err -e          # errors only
 ```
 
-**LiteLLM Proxy** and **PostgreSQL** run in Kubernetes:
+**LiteLLM Proxy**, **PostgreSQL**, and **Open WebUI** run in Kubernetes:
 
 ```bash
 kubectl get pods -n llm-gateway-internal
 kubectl logs -n llm-gateway-internal deploy/litellm -f
 kubectl logs -n llm-gateway-internal statefulset/litellm-postgres-postgresql -f
+kubectl logs -n llm-gateway-internal statefulset/open-webui -f
 ```
 
 ## Upstream references
