@@ -69,6 +69,7 @@ extraEnvVars:
 persistence:
   enabled: true
   size: 5Gi
+  storageClass: premium-perf1-stackit  # Same class as the Postgres PVC
   labels:
     digitalservice.dev/project: internal
 
