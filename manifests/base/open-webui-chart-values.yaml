@@ -1,3 +1,6 @@
+# Chart values: https://github.com/open-webui/helm-charts/blob/open-webui-17.0.0/charts/open-webui/values.yaml
+# Environment variables: https://docs.openwebui.com/getting-started/env-configuration
+
 # Keep 1 replica: SQLite on an RWO PVC and an in-process websocket manager
 replicaCount: 1
 
