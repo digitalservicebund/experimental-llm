@@ -157,6 +157,31 @@ kubectl get pods -n llm-gateway-internal       # litellm and litellm-postgres po
 curl http://127.0.0.1:4000/health/liveliness   # proxy liveness, no key needed
 ```
 
+### Open WebUI
+
+Open WebUI uses one shared Virtual Key with the alias `open-webui` for all of
+its users. Users log in to Open WebUI with their own accounts; Open WebUI then
+calls LiteLLM with this key. Generate it once with
+`./do generate-key open-webui` and store it in 1Password as
+`open-webui-api-key`, next to the LiteLLM master key. In the cluster, Open WebUI
+reads the key and its session secret from the `open-webui-secrets` Secret,
+which External Secrets creates.
+
+#### Testing locally
+
+Run Open WebUI in Docker against the LiteLLM API in the cluster.
+`./do webui-local` creates a temporary Virtual Key with the master key from
+1Password; the key expires after 8 hours. Login is disabled for the local
+instance:
+
+```bash
+# Terminal 1: Forward the LiteLLM API locally
+./do port-forward
+
+# Terminal 2: Start Open WebUI on http://localhost:8080
+./do webui-local
+```
+
 ### Checking service status and logs
 
 **vLLM** runs as the `vllm` systemd service on the GPU VM and logs only to the
