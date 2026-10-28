@@ -69,7 +69,6 @@ extraEnvVars:
 persistence:
   enabled: true
   size: 5Gi
-  storageClass: csi-sc-fast
   labels:
     digitalservice.dev/project: internal
 
