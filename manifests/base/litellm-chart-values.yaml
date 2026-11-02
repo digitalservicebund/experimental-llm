@@ -58,9 +58,9 @@ serviceAccount:
   create: true
   name: litellm
 
-extraVolumes:
-  - name: config-dir
-    emptyDir: {}
+# The chart already mounts a writable emptyDir at /tmp because of
+# readOnlyRootFilesystem.
+volumes:
   - name: gcp-workload-identity
     projected:
       sources:
@@ -74,9 +74,7 @@ extraVolumes:
               - key: credential-configuration.json
                 path: credential-configuration.json
 
-extraVolumeMounts:
-  - name: config-dir
-    mountPath: /tmp
+volumeMounts:
   - name: gcp-workload-identity
     mountPath: /var/run/secrets/gcp
     readOnly: true
