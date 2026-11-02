@@ -8,7 +8,7 @@ fronted by a LiteLLM Proxy for authentication and metrics.
 
 ## Terraform
 
-There are two separate Terraform configurations with different execution models:
+There are separate Terraform configurations with different execution models:
 
 - **`terraform/bootstrap-github-oidc/`** — one-time bootstrap that creates the
   GitHub OIDC/workload identity federation used by the main stack. Run this
@@ -18,6 +18,10 @@ There are two separate Terraform configurations with different execution models:
 - **`terraform/non-prod/`** (and any future STACKIT stack) — runs **only** from
   GitHub Actions (`.github/workflows/terraform.yml`) via OIDC. Never apply this
   stack locally.
+- **`terraform/gcp-vertex-ai/`** — Google Cloud resources for Vertex AI (see
+  [Google Vertex AI](#google-vertex-ai)). Run this **locally** with your Google
+  account and push the state files to the repository afterwards, like the
+  bootstrap.
 
 For bootstrap and setup details, use the upstream guides:
 
@@ -193,6 +197,87 @@ instance:
 Users log in with Open WebUI accounts. The first account created on a fresh
 deployment becomes the admin, so create it right after the first deployment.
 Self-signup is disabled; the admin adds all other users in the Admin Panel.
+
+### Google Vertex AI
+
+LiteLLM serves models from Vertex AI through the EU
+multi-region endpoint (`vertex_location: eu`). Our organization policy
+disallows API keys, so LiteLLM authenticates with [Workload Identity Federation.](https://docs.cloud.google.com/iam/docs/workload-identity-federation-with-kubernetes)
+
+The GCP project is `internal-llm-513109` (project number `530198116931`).
+
+#### Setup
+
+1. Install the gcloud CLI and log in. Terraform uses your Application Default
+   Credentials.
+
+   ```bash
+   brew install --cask gcloud-cli
+   gcloud auth login
+   gcloud auth application-default login
+   ```
+
+2. Apply `terraform/gcp-vertex-ai/`. It enables the APIs, creates the service
+   account `litellm` with the role Vertex AI User, creates the workload
+   identity pool `stackit-ske` with the provider `llm-gateway` for the SKE
+   cluster's issuer, and lets the Kubernetes ServiceAccount `litellm`
+   impersonate the service account. Billing must be enabled on the project.
+
+   ```bash
+   terraform -chdir=terraform/gcp-vertex-ai init
+   terraform -chdir=terraform/gcp-vertex-ai apply
+   ```
+
+   No CI job manages this state, so commit `terraform.tfstate` (gitignored,
+   use `git add -f`) and `.terraform.lock.hcl` afterwards. If the cluster's
+   issuer changes, update `kubernetes_issuer` in `variables.tf` and apply
+   again. The issuer is in the cluster status:
+   `stackit ske cluster describe -p <stackit-project-id> <cluster-name> -o json | jq -r .status.serviceAccountIssuer`.
+
+3. LiteLLM is configured in this repository:
+
+   - `manifests/base/litellm-chart-values.yaml`: model list, the
+     ServiceAccount `litellm`, the projected token volume, and
+     `GOOGLE_APPLICATION_CREDENTIALS`
+   - `manifests/base/gcp-workload-identity.yaml`: the credential configuration
+     (ConfigMap). It contains no secret.
+   - `manifests/base/network-policies.yaml`: `allow-litellm-https-egress`
+     allows outbound HTTPS. LiteLLM does not need to be reachable from the
+     internet.
+
+4. Test through the LiteLLM API. Authentication errors from Google show up in
+   `kubectl logs -n llm-gateway-internal deploy/litellm`.
+
+   ```bash
+   ./do port-forward
+   curl http://127.0.0.1:4000/v1/chat/completions \
+     -H "Authorization: Bearer <virtual-key>" \
+     -H 'Content-Type: application/json' \
+     -d '{"model":"gemini-3.6-flash","messages":[{"role":"user","content":"Hello"}]}'
+   ```
+
+Gemini models work without activation. Partner models such as Claude must be
+enabled once in Model Garden in the Google Cloud console.
+
+Docs:
+
+- [Configure Workload Identity Federation with Kubernetes](https://docs.cloud.google.com/iam/docs/workload-identity-federation-with-kubernetes):
+  what the Terraform stack and the manifests implement, with service account
+  impersonation
+- [STACKIT: Use Workload Identity](https://docs.stackit.cloud/products/runtime/kubernetes-engine/how-tos/workload-identity/):
+  the SKE cluster's issuer
+- [Set up Application Default Credentials](https://docs.cloud.google.com/docs/authentication/provide-credentials-adc)
+- [Use partner models](https://docs.cloud.google.com/vertex-ai/generative-ai/docs/partner-models/use-partner-models)
+- [LiteLLM: Vertex AI](https://docs.litellm.ai/docs/providers/vertex)
+
+#### Open topics
+
+- Deploy and test (setup step 4).
+- Claude models: enable in Model Garden, check the EU quota, verify the model
+  IDs, then uncomment them.
+- EmbeddingGemma 2 has no pay-per-token offering on Vertex AI. Options: deploy
+  it to a Vertex AI endpoint in `europe-west3` (billed per hour), run it in our
+  cluster, or use `gemini-embedding-2` instead.
 
 ### Checking service status and logs
 

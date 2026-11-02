@@ -48,6 +48,30 @@ spec:
         - protocol: TCP
           port: 5432
 ---
+# Vertex AI (*.googleapis.com) has no fixed IP ranges, so allow HTTPS to any public address.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-litellm-https-egress
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: litellm
+      app.kubernetes.io/name: litellm
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - protocol: TCP
+          port: 443
+---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
