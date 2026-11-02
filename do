@@ -62,7 +62,8 @@ case "${command}" in
       -e RAG_EMBEDDING_ENGINE=openai \
       -e RAG_OPENAI_API_KEY \
       -e RAG_OPENAI_API_BASE_URL=http://host.docker.internal:4000/v1 \
-      -e RAG_EMBEDDING_MODEL= \
+      -e RAG_EMBEDDING_MODEL=gemini-embedding-2 \
+      -e RAG_EMBEDDING_BATCH_SIZE=1 \
       -e ENABLE_OLLAMA_API=False \
       -e ENABLE_PERSISTENT_CONFIG=False \
       -e WEBUI_AUTH=False \

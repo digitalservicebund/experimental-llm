@@ -50,9 +50,13 @@ extraEnvVars:
     value: openai
   - name: RAG_OPENAI_API_BASE_URL
     value: http://litellm:4000/v1
-  # Name of the embedding model in LiteLLM, once there is one
+  # Name of the embedding model in LiteLLM
   - name: RAG_EMBEDDING_MODEL
-    value: ""
+    value: gemini-embedding-2
+  # Keep at 1: LiteLLM sends several inputs for gemini-embedding-2 to Vertex AI
+  # as one document and returns a single embedding for all of them
+  - name: RAG_EMBEDDING_BATCH_SIZE
+    value: "1"
   - name: RAG_OPENAI_API_KEY
     valueFrom:
       secretKeyRef:

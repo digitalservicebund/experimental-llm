@@ -126,6 +126,14 @@ proxy_config:
         model: vertex_ai/gemini-3.6-flash
         vertex_project: os.environ/VERTEXAI_PROJECT
         vertex_location: eu
+    # Open WebUI embeds documents with this model (RAG_EMBEDDING_MODEL)
+    - model_name: gemini-embedding-2
+      litellm_params:
+        model: vertex_ai/gemini-embedding-2
+        vertex_project: os.environ/VERTEXAI_PROJECT
+        vertex_location: eu
+      model_info:
+        mode: embedding
   # Claude models need to be enabled in Model Garden first.
   #  - model_name: claude-opus-5-5
   #    litellm_params:
