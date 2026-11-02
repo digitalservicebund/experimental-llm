@@ -1,13 +1,7 @@
 name: Terraform Apply
 
 on:
-  workflow_call:
-    inputs:
-      vm_enabled:
-        description: Whether the GPU VM should exist after apply
-        required: false
-        type: string
-        default: "true"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -20,10 +14,10 @@ jobs:
   apply:
     name: Terraform apply
     runs-on: ubuntu-latest
+    # Only apply what has been merged
+    if: github.ref == 'refs/heads/main'
 
     env:
-      TF_VAR_vm_enabled: ${{ inputs.vm_enabled }}
-      TF_VAR_bootstrap_ssh_public_key: ${{ vars.BOOTSTRAP_SSH_PUBLIC_KEY }}
       TF_VAR_backend_access_key_id: ${{ secrets.BACKEND_ACCESS_KEY_ID }}
       TF_VAR_backend_secret_access_key: ${{ secrets.BACKEND_SECRET_ACCESS_KEY }}
 
@@ -41,4 +35,3 @@ jobs:
           STACKIT_SERVICE_ACCOUNT_EMAIL: ${{ vars.STACKIT_SERVICE_ACCOUNT_EMAIL }}
           BACKEND_ACCESS_KEY_ID: ${{ secrets.BACKEND_ACCESS_KEY_ID }}
           BACKEND_SECRET_ACCESS_KEY: ${{ secrets.BACKEND_SECRET_ACCESS_KEY }}
-

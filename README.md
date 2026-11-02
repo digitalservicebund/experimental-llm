@@ -2,9 +2,8 @@
 
 [Documentation for agents](AGENTS.md)
 
-Ansible configuration for an existing Ubuntu 26.04 NVIDIA server running a
-native Python vLLM OpenAI-compatible API with a configurable Hugging Face model,
-fronted by a LiteLLM Proxy for authentication and metrics.
+LiteLLM Proxy and Open WebUI on STACKIT Kubernetes. LiteLLM serves models from
+Google Vertex AI and provides authentication and metrics.
 
 ## Terraform
 
@@ -15,9 +14,10 @@ There are separate Terraform configurations with different execution models:
   **locally** (see upstream guides below) and push the resulting state files
   (`terraform.tfstate*`) to the repository afterwards, since no CI job manages
   this state.
-- **`terraform/non-prod/`** (and any future STACKIT stack) — runs **only** from
-  GitHub Actions (`.github/workflows/terraform.yml`) via OIDC. Never apply this
-  stack locally.
+- **`terraform/non-prod/`** (and any future STACKIT stack) — the STACKIT DNS
+  zone `experimental-llm.digitalservice.dev`. Runs **only** from GitHub Actions
+  via OIDC: after merging, start the *Terraform Apply* workflow manually. Never
+  apply this stack locally.
 - **`terraform/gcp-vertex-ai/`** — Google Cloud resources for Vertex AI (see
   [Google Vertex AI](#google-vertex-ai)). Run this **locally** with your Google
   account.
@@ -36,51 +36,20 @@ export STACKIT_SERVICE_ACCOUNT_TOKEN=$(stackit auth get-access-token)
 
 ## Workstation setup
 
-On macOS, install the control-node tools with Homebrew and the official Ansible
-`pipx` method. Pin the pipx environment to Python 3.14: `ansible-core` 2.21 does
-not support Python 3.15, which may already be installed and used as default Python.
+On macOS, install the 1Password CLI with Homebrew:
 
 ```bash
-brew install pipx python@3.14
-pipx ensurepath
-# Open a new terminal after ensurepath, if pipx is not yet on PATH.
-pipx install --python "$(brew --prefix python@3.14)/bin/python3.14" --include-deps ansible-core==2.21.3
-ansible --version  # should report python version = 3.14.x
 brew install 1password-cli
 op --version
 ```
 
-To run the same static checks locally as GitHub Actions, inject the linters into
-the `ansible-core` pipx environment. Inject yamllint first and separately:
-ansible-lint pulls it in as a dependency, and pipx then skips exposing the
-yamllint command.
-
-```bash
-pipx inject --include-apps ansible-core yamllint
-pipx inject --include-apps ansible-core ansible-lint
-ansible-lint --version
-yamllint --version
-```
-
-Install the project collections. The local
-`ansible.cfg` configures the inventory and role path:
-
-```bash
-ansible-galaxy collection install -r requirements.yml
-```
-
-The repository keeps Python control-node dependencies in
-`ansible/requirements.txt` (used as the pip cache key in CI) and Ansible Galaxy
-collections in `ansible/requirements.yml`. `pipx ensurepath` only updates the
-shell `PATH`, so it stays out of `requirements.txt`.
-
-From the repository root, use the shared `do` command runner to lint, apply Ansible,
-and port-forward the LiteLLM API locally. To see available commands, run:
+From the repository root, use the shared `do` command runner to port-forward
+LiteLLM and Open WebUI and to generate Virtual Keys. To see available commands,
+run:
 
 ```bash
 ./do
 ```
-
 
 ### Secrets
 
@@ -91,33 +60,16 @@ Open and unlock the 1Password desktop app, enable **Settings > Developer >
 Integrate with 1Password CLI**, and run `op vault list` once to confirm the CLI
 can authenticate through the desktop app.
 
-Add SSH host key fingerprint to `known_hosts` before running Ansible so the
-connection is not prompted for interactive host key verification:
-
-```bash
-op run --env-file=./ansible/.env.op -- sh -c 'ssh-keyscan -H "$SERVER_PUBLIC_IP" >> ~/.ssh/known_hosts'
-```
-
-Verify the printed fingerprint against the one shown in the STACKIT console (or
-another trusted out-of-band source) before trusting it.
-
 ### LiteLLM Proxy and Virtual Keys
 
-The deployment runs four services in two places:
+The deployment runs three services in Kubernetes, namespace
+`llm-gateway-internal`, all deployed from `manifests/`:
 
-1. **vLLM** on the GPU VM, `127.0.0.1:8000` (internal only) — serves the model.
-   The VM only exists while scaled up via the *Scale Up* workflow; Ansible
-   installs vLLM as a systemd service.
-2. **LiteLLM Proxy** in Kubernetes, namespace `llm-gateway-internal`, service
-   `litellm` on port 4000 — provides authentication and metrics on top of vLLM
-3. **PostgreSQL** in Kubernetes, same namespace — stores LiteLLM Virtual Keys
-   and spend/usage metrics
-4. **Open WebUI** in Kubernetes, same namespace, service `open-webui` on port
-   80 — chat interface that uses LiteLLM with its own Virtual Key
-
-LiteLLM, PostgreSQL, and Open WebUI are deployed from `manifests/`. The VM and
-the Terraform module are still named `llm-gateway` because vLLM, LiteLLM, and
-PostgreSQL used to run on the VM.
+1. **LiteLLM Proxy**, service `litellm` on port 4000 — provides authentication
+   and metrics in front of the models on Google Vertex AI
+2. **PostgreSQL** — stores LiteLLM Virtual Keys and spend/usage metrics
+3. **Open WebUI**, service `open-webui` on port 80 — chat interface that uses
+   LiteLLM with its own Virtual Key
 
 Clients access the LiteLLM proxy via `kubectl port-forward`. The proxy uses **Virtual Keys**
 for authentication instead of a static key.
@@ -150,17 +102,6 @@ Virtual Keys are:
 - Stored in PostgreSQL in Kubernetes, alongside spend/usage metrics
 - Revocable (can be deleted or disabled)
 - More secure than static keys (can be rotated without redeploying)
-
-#### Using LiteLLM without the vLLM VM
-
-LiteLLM runs independently of the GPU VM. While the VM is scaled down you can
-still port-forward, check the proxy, generate keys, and list models. Only
-requests that reach the model, such as `/v1/chat/completions`, need the VM.
-
-```bash
-kubectl get pods -n llm-gateway-internal       # litellm and litellm-postgres pods
-curl http://127.0.0.1:4000/health/liveliness   # proxy liveness, no key needed
-```
 
 ### Open WebUI
 
@@ -308,29 +249,26 @@ Docs:
 
 ### Checking service status and logs
 
-**vLLM** runs as the `vllm` systemd service on the GPU VM and logs only to the
-journal. From an SSH session on the server (`./do login`):
-
-```bash
-systemctl status vllm
-
-journalctl -u vllm -f                 # follow live
-journalctl -u vllm -n 200 --no-pager  # last N lines
-journalctl -u vllm -p err -e          # errors only
-```
-
-**LiteLLM Proxy**, **PostgreSQL**, and **Open WebUI** run in Kubernetes:
-
 ```bash
 kubectl get pods -n llm-gateway-internal
 kubectl logs -n llm-gateway-internal deploy/litellm -f
 kubectl logs -n llm-gateway-internal statefulset/litellm-postgres-postgresql -f
 kubectl logs -n llm-gateway-internal statefulset/open-webui -f
+curl http://127.0.0.1:4000/health/liveliness   # LiteLLM liveness via ./do port-forward, no key needed
 ```
+
+## Former GPU VM
+
+A GPU VM on STACKIT used to serve Qwen2.5-Coder with vLLM, set up with Ansible.
+[PR #11](https://github.com/digitalservicebund/experimental-llm/pull/11)
+removed the VM, its Terraform module, the Ansible configuration, and the
+*Scale Up*/*Scale Down* workflows. To bring the VM back, restore those files
+from the PR. Its boot volume was deleted, so the VM starts from scratch.
+
+Keep the DNS zone in `terraform/non-prod/main.tf`. A plain revert of the PR
+moves it back into the module without a `moved` block, and Terraform would
+recreate the zone.
 
 ## Upstream references
 
-- [Ansible installation](https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html)
-- [vLLM GPU installation](https://docs.vllm.ai/en/stable/getting_started/installation/gpu/)
-- [Qwen2.5-Coder-32B-Instruct model card](https://huggingface.co/Qwen/Qwen2.5-Coder-32B-Instruct)
 - [STACKIT documentation](https://docs.stackit.cloud/)

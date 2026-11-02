@@ -1,18 +1,20 @@
-module "llm_gateway" {
-  source = "../modules/llm-gateway"
+resource "stackit_dns_zone" "experimental_llm" {
+  project_id    = var.project_id
+  name          = var.dns_zone_display_name
+  dns_name      = var.dns_name
+  contact_email = var.dns_contact_email
+  type          = "primary"
+  description   = "Zone for llm-gateway-non-prod"
+  default_ttl   = var.dns_default_ttl
 
-  project_id                    = var.project_id
-  existing_network_id           = var.existing_network_id
-  availability_zone             = var.availability_zone
-  vm_enabled                    = var.vm_enabled
-  vm_name                       = var.vm_name
-  vm_machine_type_name          = var.vm_machine_type_name
-  bootstrap_ssh_user            = var.bootstrap_ssh_user
-  bootstrap_ssh_public_key      = var.bootstrap_ssh_public_key
-  boot_volume_size_gb           = var.boot_volume_size_gb
-  boot_volume_performance_class = var.boot_volume_performance_class
-  dns_name                      = var.dns_name
-  dns_zone_display_name         = var.dns_zone_display_name
-  dns_contact_email             = var.dns_contact_email
-  dns_default_ttl               = var.dns_default_ttl
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+# The zone used to be part of the GPU VM module. Its attributes are unchanged,
+# so Terraform only moves it in the state.
+moved {
+  from = module.llm_gateway.stackit_dns_zone.vm
+  to   = stackit_dns_zone.experimental_llm
 }
