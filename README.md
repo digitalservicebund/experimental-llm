@@ -257,6 +257,18 @@ kubectl logs -n llm-gateway-internal statefulset/open-webui -f
 curl http://127.0.0.1:4000/health/liveliness   # LiteLLM liveness via ./do port-forward, no key needed
 ```
 
+## Former GPU VM
+
+A GPU VM on STACKIT used to serve Qwen2.5-Coder with vLLM, set up with Ansible.
+[PR #11](https://github.com/digitalservicebund/experimental-llm/pull/11)
+removed the VM, its Terraform module, the Ansible configuration, and the
+*Scale Up*/*Scale Down* workflows. To bring the VM back, restore those files
+from the PR. Its boot volume was deleted, so the VM starts from scratch.
+
+Keep the DNS zone in `terraform/non-prod/main.tf`. A plain revert of the PR
+moves it back into the module without a `moved` block, and Terraform would
+recreate the zone.
+
 ## Upstream references
 
 - [STACKIT documentation](https://docs.stackit.cloud/)
