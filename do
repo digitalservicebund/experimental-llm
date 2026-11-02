@@ -4,7 +4,7 @@ set -euo pipefail
 repo_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 ansible_dir="${repo_dir}/ansible"
 # Keep in sync with image.tag in manifests/base/open-webui-chart-values.yaml
-open_webui_image="ghcr.io/open-webui/open-webui:0.12.4-slim"
+open_webui_image="ghcr.io/open-webui/open-webui:0.12.5-slim"
 
 usage() {
   cat <<'EOF'
