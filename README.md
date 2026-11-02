@@ -243,9 +243,9 @@ Docs:
 
 - Claude models: enable in Model Garden, check the EU quota, verify the model
   IDs, then uncomment them.
-- EmbeddingGemma 2 has no pay-per-token offering on Vertex AI. Options: deploy
-  it to a Vertex AI endpoint in `europe-west3` (billed per hour), run it in our
-  cluster, or use `gemini-embedding-2` instead.
+- Embeddings: Open WebUI uses `gemini-embedding-2` for now. EmbeddingGemma 2
+  has no pay-per-token offering on Vertex AI. Options: deploy it to a Vertex AI
+  endpoint in `europe-west3` (billed per hour) or run it in our cluster.
 
 ### Checking service status and logs
 
