@@ -110,8 +110,6 @@ proxy_config:
   router_settings:
     default_max_retries: 3
     default_timeout: 600
-  # Vertex AI models use the EU multi-region endpoint (aiplatform.eu.rep.googleapis.com):
-  # none of them is offered in europe-west3 (Frankfurt).
   model_list:
     - model_name: gemini-4-argon
       litellm_params:
