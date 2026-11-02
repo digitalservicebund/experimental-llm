@@ -20,8 +20,7 @@ There are separate Terraform configurations with different execution models:
   stack locally.
 - **`terraform/gcp-vertex-ai/`** — Google Cloud resources for Vertex AI (see
   [Google Vertex AI](#google-vertex-ai)). Run this **locally** with your Google
-  account and push the state files to the repository afterwards, like the
-  bootstrap.
+  account.
 
 For bootstrap and setup details, use the upstream guides:
 
@@ -234,10 +233,8 @@ The GCP project is `internal-llm-513109` (project number `530198116931`).
    terraform -chdir=terraform/gcp-vertex-ai apply
    ```
 
-   No CI job manages this state, so commit `terraform.tfstate` (gitignored,
-   use `git add -f`) and `.terraform.lock.hcl` afterwards. If the cluster's
-   issuer changes, update `kubernetes_issuer` in `variables.tf` and apply
-   again. The issuer is in the cluster status:
+   If the cluster's issuer changes, update `kubernetes_issuer` in
+   `variables.tf` and apply again. The issuer is in the cluster status:
    `stackit ske cluster describe -p <stackit-project-id> <cluster-name> -o json | jq -r .status.serviceAccountIssuer`.
 
 3. LiteLLM is configured in this repository:
@@ -278,7 +275,6 @@ Docs:
 
 #### Open topics
 
-- Deploy and test (setup step 4).
 - Claude models: enable in Model Garden, check the EU quota, verify the model
   IDs, then uncomment them.
 - EmbeddingGemma 2 has no pay-per-token offering on Vertex AI. Options: deploy
