@@ -22,65 +22,9 @@ variable "backend_secret_access_key" {
   description = "Secret key for the backend object bucket."
 }
 
-variable "existing_network_id" {
-  type        = string
-  description = "ID of the existing STACKIT network named llm."
-  default     = "7cdd4ee0-cb53-40b7-b8e8-50a324c261f8"
-}
-
-variable "availability_zone" {
-  type        = string
-  description = "STACKIT availability zone for the VM and boot volume."
-  default     = "eu01-1"
-}
-
-variable "vm_enabled" {
-  type        = bool
-  description = "Whether the GPU VM should be created."
-  default     = true
-}
-
-variable "vm_name" {
-  type        = string
-  description = "Logical name for the non-production VM."
-  default     = "llm-gateway-non-prod"
-}
-
-variable "vm_machine_type_name" {
-  type        = string
-  description = "Exact STACKIT machine type name for the GPU instance."
-  default     = "n2.14d.g1" # 14-core CPU machine with 1 NVIDIA L40S 48GB GPU
-  # default = "n1.14d.g1" # 14-core CPU machine with 1 NVIDIA A100 80GB GPU
-}
-
-variable "bootstrap_ssh_user" {
-  type        = string
-  description = "Unix user that receives the bootstrap SSH key via cloud-init."
-  default     = "ubuntu"
-}
-
-variable "bootstrap_ssh_public_key" {
-  type        = string
-  description = "Primary deployer SSH public key injected into cloud-init."
-  sensitive   = true
-  default     = ""
-}
-
-variable "boot_volume_size_gb" {
-  type        = number
-  description = "Persistent boot volume size in GiB."
-  default     = 100
-}
-
-variable "boot_volume_performance_class" {
-  type        = string
-  description = "STACKIT block-storage performance class for the boot volume."
-  default     = "storage_premium_perf6"
-}
-
 variable "dns_name" {
   type        = string
-  description = "DNS zone name and apex A record name for the non-production VM."
+  description = "Name of the STACKIT DNS zone."
   default     = "experimental-llm.digitalservice.dev"
 }
 

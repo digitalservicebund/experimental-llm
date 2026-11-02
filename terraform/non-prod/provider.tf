@@ -1,7 +1,6 @@
 provider "stackit" {
-  default_region        = var.region
-  experiments           = ["iam"]
-  enable_beta_resources = true # needed for stackit_image_v2 and stackit_machine_type
+  default_region = var.region
+  experiments    = ["iam"]
 }
 
 provider "aws" {

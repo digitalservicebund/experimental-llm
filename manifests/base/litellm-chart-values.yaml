@@ -89,7 +89,6 @@ podSecurityContext:
 envVars:
   HOME: "/tmp"
   XDG_CONFIG_HOME: "/tmp/.config"
-  # VLLM_API_BASE: "http://localhost:8000/v1"
   VERTEXAI_PROJECT: "internal-llm-513109"
   GOOGLE_APPLICATION_CREDENTIALS: "/var/run/secrets/gcp/credential-configuration.json"
 
@@ -135,13 +134,6 @@ proxy_config:
   #      model: vertex_ai/claude-haiku-5-5
   #      vertex_project: os.environ/VERTEXAI_PROJECT
   #      vertex_location: eu
-  # qwen-coder is served by vLLM on the GPU VM, which is not in use at the moment.
-  #  - model_name: qwen-coder
-  #    litellm_params:
-  #      model: openai/qwen-coder-32b
-  #      api_base: ${VLLM_API_BASE}
-  #      api_key: sk-1234
-  #      api_version: "2024-01-01"
 
 livenessProbe:
   httpGet:
