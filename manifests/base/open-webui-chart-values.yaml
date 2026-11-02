@@ -77,6 +77,9 @@ extraEnvVars:
   # Default is 4 weeks
   - name: JWT_EXPIRES_IN
     value: 24h
+  # Sends the user's email to LiteLLM for spend tracking and budgets per user
+  - name: ENABLE_FORWARD_USER_INFO_HEADERS
+    value: "True"
 
 persistence:
   enabled: true
