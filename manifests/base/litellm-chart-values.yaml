@@ -52,13 +52,34 @@ securityContext:
   seccompProfile:
     type: RuntimeDefault
 
+# Vertex AI authenticates this ServiceAccount via Workload Identity Federation
+# (see README). The GCP principal is bound to its name.
+serviceAccount:
+  create: true
+  name: litellm
+
 extraVolumes:
   - name: config-dir
     emptyDir: {}
+  - name: gcp-workload-identity
+    projected:
+      sources:
+        - serviceAccountToken:
+            path: token
+            audience: https://iam.googleapis.com/projects/530198116931/locations/global/workloadIdentityPools/stackit-ske/providers/llm-gateway
+            expirationSeconds: 3600
+        - configMap:
+            name: litellm-gcp-workload-identity
+            items:
+              - key: credential-configuration.json
+                path: credential-configuration.json
 
 extraVolumeMounts:
   - name: config-dir
     mountPath: /tmp
+  - name: gcp-workload-identity
+    mountPath: /var/run/secrets/gcp
+    readOnly: true
 
 podSecurityContext:
   runAsNonRoot: true
@@ -70,7 +91,9 @@ podSecurityContext:
 envVars:
   HOME: "/tmp"
   XDG_CONFIG_HOME: "/tmp/.config"
-  VLLM_API_BASE: "http://localhost:8000/v1"
+  # VLLM_API_BASE: "http://localhost:8000/v1"
+  VERTEXAI_PROJECT: "internal-llm-513109"
+  GOOGLE_APPLICATION_CREDENTIALS: "/var/run/secrets/gcp/credential-configuration.json"
 
 proxy_config:
   litellm_settings:
@@ -87,13 +110,42 @@ proxy_config:
   router_settings:
     default_max_retries: 3
     default_timeout: 600
+  # Vertex AI models use the EU multi-region endpoint (aiplatform.eu.rep.googleapis.com):
+  # none of them is offered in europe-west3 (Frankfurt).
   model_list:
-    - model_name: qwen-coder
+    - model_name: gemini-4-argon
       litellm_params:
-        model: openai/qwen-coder-32b
-        api_base: ${VLLM_API_BASE}
-        api_key: sk-1234
-        api_version: "2024-01-01"
+        model: vertex_ai/gemini-4-argon
+        vertex_project: os.environ/VERTEXAI_PROJECT
+        vertex_location: eu
+    - model_name: gemini-3.6-flash
+      litellm_params:
+        model: vertex_ai/gemini-3.6-flash
+        vertex_project: os.environ/VERTEXAI_PROJECT
+        vertex_location: eu
+  # Claude models need to be enabled in Model Garden first.
+  #  - model_name: claude-opus-5-5
+  #    litellm_params:
+  #      model: vertex_ai/claude-opus-5-5
+  #      vertex_project: os.environ/VERTEXAI_PROJECT
+  #      vertex_location: eu
+  #  - model_name: claude-sonnet-5-5
+  #    litellm_params:
+  #      model: vertex_ai/claude-sonnet-5-5
+  #      vertex_project: os.environ/VERTEXAI_PROJECT
+  #      vertex_location: eu
+  #  - model_name: claude-haiku-5-5
+  #    litellm_params:
+  #      model: vertex_ai/claude-haiku-5-5
+  #      vertex_project: os.environ/VERTEXAI_PROJECT
+  #      vertex_location: eu
+  # qwen-coder is served by vLLM on the GPU VM, which is not in use at the moment.
+  #  - model_name: qwen-coder
+  #    litellm_params:
+  #      model: openai/qwen-coder-32b
+  #      api_base: ${VLLM_API_BASE}
+  #      api_key: sk-1234
+  #      api_version: "2024-01-01"
 
 livenessProbe:
   httpGet:

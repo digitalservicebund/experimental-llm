@@ -3,6 +3,7 @@ kind: Kustomization
 
 resources:
   - network-policies.yaml
+  - gcp-workload-identity.yaml
 
 # Helm charts for LiteLLM, PostgreSQL and Open WebUI
 helmCharts:
