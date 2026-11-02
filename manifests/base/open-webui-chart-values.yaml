@@ -7,7 +7,7 @@ replicaCount: 1
 
 image:
   repository: ghcr.io/open-webui/open-webui
-  tag: "0.12.4-slim"  # Keep in sync with open_webui_image in ./do
+  tag: "0.12.5-slim"  # Keep in sync with open_webui_image in ./do
 
 ollama:
   enabled: false
@@ -77,6 +77,9 @@ extraEnvVars:
   # Default is 4 weeks
   - name: JWT_EXPIRES_IN
     value: 24h
+  # Sends the user's email to LiteLLM for spend tracking and budgets per user
+  - name: ENABLE_FORWARD_USER_INFO_HEADERS
+    value: "True"
 
 persistence:
   enabled: true

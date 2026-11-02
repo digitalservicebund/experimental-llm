@@ -144,6 +144,31 @@ Users log in with Open WebUI accounts. The first account created on a fresh
 deployment becomes the admin, so create it right after the first deployment.
 Self-signup is disabled; the admin adds all other users in the Admin Panel.
 
+#### Spend and budgets per user
+
+Open WebUI sends the signed-in user's email to LiteLLM
+(`ENABLE_FORWARD_USER_INFO_HEADERS`). LiteLLM tracks each email as an end user
+(customer) with its own spend. Every user gets the budget `open-webui-user`
+(`max_end_user_budget_id`), and LiteLLM rejects their requests once they exceed
+it. Create the budget once, for example 10 USD per 30 days:
+
+```bash
+# Terminal 1: Forward the LiteLLM API locally
+./do port-forward
+
+# Terminal 2
+./do create-budget open-webui-user 10 30d
+./do user-spend   # spend in USD per user
+```
+
+To change the amount, use `/budget/update`. To give a single user a different
+budget, create another budget and assign it with `/customer/update`.
+
+Docs:
+
+- [LiteLLM: Open WebUI](https://docs.litellm.ai/docs/tutorials/openweb_ui)
+- [LiteLLM: Budgets](https://docs.litellm.ai/docs/proxy/users)
+
 ### Google Vertex AI
 
 LiteLLM serves models from Vertex AI through the EU

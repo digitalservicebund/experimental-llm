@@ -104,6 +104,14 @@ proxy_config:
       - 504
     enable_logging: true
     log_response_per_token: true
+    # Budget of every end user without an own budget; create it once (see README)
+    max_end_user_budget_id: open-webui-user
+  # The chart's master_key stays, Helm merges this map with the chart defaults
+  general_settings:
+    # Open WebUI sends the signed-in user's email (ENABLE_FORWARD_USER_INFO_HEADERS)
+    user_header_mappings:
+      - header_name: X-OpenWebUI-User-Email
+        litellm_user_role: customer
   router_settings:
     default_max_retries: 3
     default_timeout: 600

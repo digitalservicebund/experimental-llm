@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Keep in sync with image.tag in manifests/base/open-webui-chart-values.yaml
-open_webui_image="ghcr.io/open-webui/open-webui:0.12.4-slim"
+open_webui_image="ghcr.io/open-webui/open-webui:0.12.5-slim"
 
 usage() {
   cat <<'EOF'
@@ -14,6 +14,9 @@ Commands:
   webui-local             Run Open WebUI in Docker against the forwarded LiteLLM API.
                           Uses a temporary Virtual Key that expires after 8 hours.
   generate-key <alias>    Generate Virtual Keys for LiteLLM proxy authentication.
+  create-budget <id> <max-usd> <duration>
+                          Create a LiteLLM budget, e.g. open-webui-user 10 30d.
+  user-spend              List spend in USD per Open WebUI user.
   help                    Show this help text.
 EOF
 }
@@ -82,6 +85,27 @@ case "${command}" in
       -H "Authorization: Bearer ${litellm_master_key}" \
       -H "Content-Type: application/json" \
       -d "$(jq -n --arg key_alias "${key_alias}" '{key_alias: $key_alias}')" | jq .
+    ;;
+
+  create-budget)
+    if [[ $# -lt 3 ]]; then
+      echo "Error: Missing budget id, max budget in USD, or duration." >&2
+      usage >&2
+      exit 1
+    fi
+    litellm_master_key="$(op read "op://z3yr24dkqmdjsvc724nouabjpi/eslyhyeireaxhtopettp7fxbwm/litellm-master-key")"
+    curl -sS --fail-with-body -X POST "http://127.0.0.1:4000/budget/new" \
+      -H "Authorization: Bearer ${litellm_master_key}" \
+      -H "Content-Type: application/json" \
+      -d "$(jq -n --arg budget_id "$1" --argjson max_budget "$2" --arg budget_duration "$3" \
+        '{budget_id: $budget_id, max_budget: $max_budget, budget_duration: $budget_duration}')" | jq .
+    ;;
+
+  user-spend)
+    litellm_master_key="$(op read "op://z3yr24dkqmdjsvc724nouabjpi/eslyhyeireaxhtopettp7fxbwm/litellm-master-key")"
+    curl -sS --fail-with-body "http://127.0.0.1:4000/customer/list" \
+      -H "Authorization: Bearer ${litellm_master_key}" |
+      jq 'map({user_id, spend, budget_id})'
     ;;
 
   help|-h|--help)

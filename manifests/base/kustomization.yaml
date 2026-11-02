@@ -18,7 +18,7 @@ helmCharts:
   # LiteLLM Proxy
   - name: litellm-helm
     repo: oci://ghcr.io/berriai
-    version: 1.105.0
+    version: 1.106.6
     releaseName: litellm
     namespace: llm-gateway-internal
     valuesFile: litellm-chart-values.yaml
@@ -26,7 +26,7 @@ helmCharts:
   # Open WebUI chat interface in front of LiteLLM
   - name: open-webui
     repo: https://open-webui.github.io/helm-charts
-    version: 17.0.0
+    version: 17.5.0
     releaseName: open-webui
     namespace: llm-gateway-internal
     valuesFile: open-webui-chart-values.yaml
