@@ -189,6 +189,12 @@ instance:
 
 #### Using the cluster deployment
 
+Open WebUI is available at https://experimental-llm.dev.tech.digitalservice.dev.
+This is reachable from the internet, but only meant to be shared within
+DigitalService.
+
+You can also reach it through a port-forward:
+
 ```bash
 ./do port-forward-webui   # Open WebUI on http://localhost:8080
 ```

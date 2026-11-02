@@ -1,5 +1,6 @@
 # Chart values: https://github.com/open-webui/helm-charts/blob/open-webui-17.0.0/charts/open-webui/values.yaml
-# Environment variables: https://docs.openwebui.com/getting-started/env-configuration
+# Environment variables: https://docs.openwebui.com/reference/env-configuration
+# Hardening: https://docs.openwebui.com/getting-started/advanced-topics/hardening
 
 # Keep 1 replica: SQLite on an RWO PVC and an in-process websocket manager
 replicaCount: 1
@@ -65,6 +66,17 @@ extraEnvVars:
   # Keep these values and the secret as source of truth instead of webui.db
   - name: ENABLE_PERSISTENT_CONFIG
     value: "False"
+  # Public URL, see route below
+  - name: WEBUI_URL
+    value: https://experimental-llm.dev.tech.digitalservice.dev
+  # Also allow ./do port-forward-webui, otherwise its websocket is rejected
+  - name: CORS_ALLOW_ORIGIN
+    value: https://experimental-llm.dev.tech.digitalservice.dev;http://localhost:8080
+  - name: WEBUI_SESSION_COOKIE_SECURE
+    value: "True"
+  # Default is 4 weeks
+  - name: JWT_EXPIRES_IN
+    value: 24h
 
 persistence:
   enabled: true
@@ -78,6 +90,17 @@ persistence:
 
 service:
   labels:
+    digitalservice.dev/project: internal
+
+# HTTPRoute on the platform's shared Gateway, which terminates TLS
+route:
+  enabled: true
+  hostnames:
+    - experimental-llm.dev.tech.digitalservice.dev
+  parentRefs:
+    - name: traefik-gateway
+      namespace: traefik
+  extraLabels:
     digitalservice.dev/project: internal
 
 podSecurityContext:
