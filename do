@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Keep in sync with image.tag in manifests/base/open-webui-chart-values.yaml
-open_webui_image="ghcr.io/open-webui/open-webui:0.13.0-slim"
+open_webui_image="ghcr.io/open-webui/open-webui:0.13.0"
 
 usage() {
   cat <<'EOF'
