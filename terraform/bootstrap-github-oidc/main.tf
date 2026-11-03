@@ -7,6 +7,22 @@ terraform {
       version = "~> 0.114.0"
     }
   }
+
+  # Same bucket as terraform/non-prod. Credentials come from AWS_ACCESS_KEY_ID
+  # and AWS_SECRET_ACCESS_KEY (see README).
+  backend "s3" {
+    bucket       = "self-hosted-llm-terraform-state"
+    key          = "bootstrap-github-oidc"
+    use_lockfile = true
+    endpoints = {
+      s3 = "https://object.storage.eu01.onstackit.cloud"
+    }
+    region                      = "eu01"
+    skip_credentials_validation = true
+    skip_region_validation      = true
+    skip_s3_checksum            = true
+    skip_requesting_account_id  = true
+  }
 }
 
 provider "stackit" {

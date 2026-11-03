@@ -11,9 +11,10 @@ There are separate Terraform configurations with different execution models:
 
 - **`terraform/bootstrap-github-oidc/`** — one-time bootstrap that creates the
   GitHub OIDC/workload identity federation used by the main stack. Run this
-  **locally** (see upstream guides below) and push the resulting state files
-  (`terraform.tfstate*`) to the repository afterwards, since no CI job manages
-  this state.
+  **locally** (see upstream guides below).
+- **`terraform/bootstrap-secrets-manager/`** — one-time bootstrap for the
+  STACKIT Secrets Manager that External Secrets reads from, and its users for
+  External Secrets and Terraform. Run this **locally**.
 - **`terraform/non-prod/`** (and any future STACKIT stack) — the STACKIT DNS
   zone `experimental-llm.digitalservice.dev`. Runs **only** from GitHub Actions
   via OIDC: after merging, start the *Terraform Apply* workflow manually. Never
@@ -32,6 +33,16 @@ service account token:
 
 ```bash
 export STACKIT_SERVICE_ACCOUNT_TOKEN=$(stackit auth get-access-token)
+```
+
+All stacks keep their state in the STACKIT Object Storage bucket
+`self-hosted-llm-terraform-state`, each under its own key. Never commit state
+files: they can contain passwords in plain text. Terraform reads the bucket
+credentials from these environment variables:
+
+```bash
+export AWS_ACCESS_KEY_ID="op://<Employee or Team Vault>/<state bucket name> credentials/ACCESS_KEY_ID"
+export AWS_SECRET_ACCESS_KEY="op://<Employee or Team Vault>/<state bucket name> credentials/SECRET_ACCESS_KEY"
 ```
 
 ## Workstation setup
@@ -105,13 +116,13 @@ Virtual Keys are:
 
 ### Open WebUI
 
-Open WebUI uses one shared Virtual Key with the alias `open-webui` for all of
-its users. Users log in to Open WebUI with their own accounts; Open WebUI then
-calls LiteLLM with this key. Generate it once with
-`./do generate-key open-webui` and store it in 1Password as
-`open-webui-api-key`, next to the LiteLLM master key. In the cluster, Open WebUI
-reads the key and its session secret from the `open-webui-secrets` Secret,
-which External Secrets creates.
+Open WebUI uses one shared Virtual Key for all of its users. Users log in to
+Open WebUI with their own accounts; Open WebUI then calls LiteLLM with this key.
+The key is stored only in the STACKIT Secrets Manager, in the secret
+`open-webui-secrets` (property `litellm-api-key`). To replace it, generate a new
+one with `./do generate-key <alias>`, write it there, and delete the old key. In
+the cluster, Open WebUI reads the key and its session secret from the
+`open-webui-secrets` Secret, which External Secrets creates.
 
 #### Testing locally
 
