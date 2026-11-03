@@ -70,6 +70,9 @@ extraEnvVars:
   # Keep these values and the secret as source of truth instead of webui.db
   - name: ENABLE_PERSISTENT_CONFIG
     value: "False"
+  # Shown as "DigitalService (Open WebUI)": Open WebUI appends its own name
+  - name: WEBUI_NAME
+    value: DigitalService
   # Public URL, see route below
   - name: WEBUI_URL
     value: https://experimental-llm.dev.tech.digitalservice.dev
