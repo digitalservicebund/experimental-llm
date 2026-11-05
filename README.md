@@ -250,14 +250,6 @@ Docs:
 - [Use partner models](https://docs.cloud.google.com/vertex-ai/generative-ai/docs/partner-models/use-partner-models)
 - [LiteLLM: Vertex AI](https://docs.litellm.ai/docs/providers/vertex)
 
-#### Open topics
-
-- Claude models: enable in Model Garden, check the EU quota, verify the model
-  IDs, then uncomment them.
-- Embeddings: Open WebUI uses `gemini-embedding-2` for now. EmbeddingGemma 2
-  has no pay-per-token offering on Vertex AI. Options: deploy it to a Vertex AI
-  endpoint in `europe-west3` (billed per hour) or run it in our cluster.
-
 ### Checking service status and logs
 
 ```bash
@@ -280,6 +272,17 @@ Keep the DNS zone in `terraform/non-prod/main.tf`. A plain revert of the PR
 moves it back into the module without a `moved` block, and Terraform would
 recreate the zone.
 
-## Upstream references
+## Open topics
 
-- [STACKIT documentation](https://docs.stackit.cloud/)
+- SSO: users log in with local Open WebUI accounts. Google SSO is possible but
+  not configured yet.
+- Usage limits: no budget is configured yet, see
+  [Spend and budgets per user](#spend-and-budgets-per-user).
+- Production: Open WebUI should run with multiple replicas. That needs Postgres
+  instead of SQLite, Redis, shared file storage (S3) and an external vector DB.
+  Docs: [Open WebUI: Scaling](https://docs.openwebui.com/getting-started/advanced-topics/scaling)
+- Claude models: enable in Model Garden and accept Anthropic's terms, check the
+  EU quota, verify the model IDs, then uncomment them.
+- Embeddings: Open WebUI uses `gemini-embedding-2` for now. EmbeddingGemma 2
+  has no pay-per-token offering on Vertex AI. Options: deploy it to a Vertex AI
+  endpoint in `europe-west3` (billed per hour) or run it in our cluster.
