@@ -1,7 +1,7 @@
 # Credential configuration for Workload Identity Federation with Google Cloud.
 # It contains no secret: LiteLLM exchanges the projected ServiceAccount token
 # (/var/run/secrets/gcp/token) for a short-lived token of the GCP service account.
-# Equivalent to the output of `gcloud iam workload-identity-pools create-cred-config` (see README).
+# Equivalent to the output of `gcloud iam workload-identity-pools create-cred-config`.
 apiVersion: v1
 kind: ConfigMap
 metadata:

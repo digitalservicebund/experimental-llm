@@ -53,7 +53,7 @@ securityContext:
     type: RuntimeDefault
 
 # Vertex AI authenticates this ServiceAccount via Workload Identity Federation
-# (see README). The GCP principal is bound to its name.
+# (see docs/vertex-ai.md). The GCP principal is bound to its name.
 serviceAccount:
   create: true
   name: litellm
